@@ -684,33 +684,13 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                 style={{
                   backgroundColor: securityBgStyle === 'guilloche' ? '#cbf3d2' : '#ffffff',
                   backgroundImage: securityBgStyle === 'guilloche'
-                    ? `repeating-linear-gradient(
-                        45deg,
-                        rgba(5, 150, 105, 0.08) 0px,
-                        rgba(5, 150, 105, 0.08) 3px,
-                        transparent 3px,
-                        transparent 8px
-                      ), repeating-linear-gradient(
-                        -45deg,
-                        rgba(16, 185, 129, 0.06) 0px,
-                        rgba(16, 185, 129, 0.06) 3px,
-                        transparent 3px,
-                        transparent 8px
-                      )`
+                    ? "url('/seguridad.png')"
                     : 'none',
+                  backgroundSize: '100% 100%',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
                 }}
               >
-                {/* Subtle Watermark repeating SEGURIDAD (Only in security paper) */}
-                {securityBgStyle === 'guilloche' && (
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-15 flex flex-wrap gap-12 p-8 select-none">
-                    {Array.from({ length: 48 }).map((_, i) => (
-                      <span key={i} className="text-xs font-black tracking-widest text-emerald-900 rotate-[-20deg]">
-                        SEGURIDAD
-                      </span>
-                    ))}
-                  </div>
-                )}
-
                 <div className="relative z-10 space-y-4 text-xs sm:text-sm font-sans">
                   
                   {/* DOCUMENT TITLE */}
@@ -728,14 +708,14 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                       <span className="font-bold text-slate-900 block text-xs">Tipo de instalación:</span>
                       
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
+                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-transparent">
                           {selectedReport.tipoInstalacionPrincipal === 'Baja Tensión' ? 'X' : ''}
                         </div>
                         <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Baja Tensión</span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
+                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-transparent">
                           {selectedReport.tipoInstalacionPrincipal === 'Media y Baja Tensión' ? 'X' : ''}
                         </div>
                         <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Media y Baja Tensión</span>
@@ -770,46 +750,46 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                     De conformidad a lo dispuesto en el Artículo 5° Constitucional, cumpliendo con los requerimientos del Artículo 12, referente al ejercicio profesional, en pleno ejercicio de los derechos establecidos en el Artículo 21 y cumpliendo con las obligaciones establecidas en el Artículo 22, de la Ley de Profesiones del Estado de Michoacán de Ocampo, en mi carácter de <strong className="font-black">Perito Dictaminador de Instalaciones Eléctricas en Media y Baja Tensión</strong>, afiliado al <strong className="font-black">Colegio Federal de Peritos, A.C.</strong>, presento el informe en materia de seguridad, de la instalación que se describe a continuación:
                   </div>
 
-                  {/* OFFICIAL DATA TABLE: RESPONSIVE FIXED - NO COLLISION */}
-                  <div className="border-2 border-slate-900 divide-y-2 divide-slate-900 bg-white/95">
+                  {/* OFFICIAL DATA TABLE: ALL BOXES TRANSPARENT AS REQUESTED */}
+                  <div className="border-2 border-slate-900 divide-y-2 divide-slate-900 bg-transparent">
                     
                     {/* Row 1: Folio, Clave, Fecha */}
-                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs font-bold">
-                      <div className="col-span-4 sm:col-span-3 p-1.5 bg-slate-100 flex items-center min-w-0">
+                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs font-bold bg-transparent">
+                      <div className="col-span-4 sm:col-span-3 p-1.5 bg-transparent flex items-center min-w-0">
                         <span className="truncate">Informe de revisión No.{selectedReport.folio}</span>
                       </div>
-                      <div className="col-span-5 sm:col-span-6 p-1.5 text-center font-mono text-[10px] sm:text-xs flex items-center justify-center break-all">
+                      <div className="col-span-5 sm:col-span-6 p-1.5 text-center font-mono text-[10px] sm:text-xs flex items-center justify-center break-all bg-transparent">
                         {selectedReport.claveExpediente}
                       </div>
-                      <div className="col-span-3 sm:col-span-3 p-1.5 flex items-center justify-end font-bold pr-2 min-w-0">
+                      <div className="col-span-3 sm:col-span-3 p-1.5 flex items-center justify-end font-bold pr-2 min-w-0 bg-transparent">
                         <span className="truncate">Fecha: <strong className="font-mono">{selectedReport.fecha}</strong></span>
                       </div>
                     </div>
 
                     {/* Row 2: Giro de la instalación */}
-                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs">
-                      <div className="col-span-4 sm:col-span-3 p-1.5 font-bold bg-slate-50 flex items-center">
+                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs bg-transparent">
+                      <div className="col-span-4 sm:col-span-3 p-1.5 font-bold bg-transparent flex items-center">
                         Giro de la instalación:
                       </div>
-                      <div className="col-span-8 sm:col-span-9 p-1.5 font-bold uppercase tracking-tight text-[11px] sm:text-xs flex items-center">
+                      <div className="col-span-8 sm:col-span-9 p-1.5 font-bold uppercase tracking-tight text-[11px] sm:text-xs flex items-center bg-transparent">
                         {selectedReport.giroInstalacion}
                       </div>
                     </div>
 
                     {/* Row 3: 3 Technical Columns */}
-                    <div className="grid grid-cols-3 divide-x-2 divide-slate-900 text-[11px] sm:text-xs">
+                    <div className="grid grid-cols-3 divide-x-2 divide-slate-900 text-[11px] sm:text-xs bg-transparent">
                       
                       {/* Col 1: Tensión eléctrica de suministro & Subestación */}
-                      <div className="p-2 space-y-1.5">
+                      <div className="p-2 space-y-1.5 bg-transparent">
                         <div className="font-bold border-b border-slate-900 pb-1">Tension eléctrica de suministro:</div>
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tensionSuministro === 'Menos de 1000 V' ? 'X' : ''}
                           </div>
                           <span>Menos de 1000 V</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tensionSuministro === '1000 V o más' ? 'X' : ''}
                           </div>
                           <span>1000 V o más</span>
@@ -828,58 +808,58 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                       </div>
 
                       {/* Col 2: Tipo de instalación */}
-                      <div className="p-2 space-y-1.5">
+                      <div className="p-2 space-y-1.5 bg-transparent">
                         <div className="font-bold border-b border-slate-900 pb-1">Tipo de instalación:</div>
                         <div className="flex items-center justify-between">
                           <span>Lugar de concentración pública</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.clasificacionInstalacion === 'Lugar de concentración pública' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Area peligrosa</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.clasificacionInstalacion === 'Area peligrosa' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Industria</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.clasificacionInstalacion === 'Industria' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Otro</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.clasificacionInstalacion === 'Otro' ? 'X' : ''}
                           </div>
                         </div>
                       </div>
 
                       {/* Col 3: Tipo de servicio */}
-                      <div className="p-2 space-y-1.5">
+                      <div className="p-2 space-y-1.5 bg-transparent">
                         <div className="font-bold border-b border-slate-900 pb-1">Tipo de servicio:</div>
                         <div className="flex items-center justify-between">
                           <span>Servicio Nuevo</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tipoServicio === 'Servicio Nuevo' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Modificación de instalación</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tipoServicio === 'Modificación de instalación' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Revisión periódica</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tipoServicio === 'Revisión periódica' ? 'X' : ''}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Cambio de Razón social</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-transparent">
                             {selectedReport.tipoServicio === 'Cambio de Razón social' ? 'X' : ''}
                           </div>
                         </div>
@@ -888,8 +868,8 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                     </div>
 
                     {/* Section: Datos del Titular */}
-                    <div className="p-2 space-y-1 text-xs">
-                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
+                    <div className="p-2 space-y-1 text-xs bg-transparent">
+                      <div className="font-bold bg-transparent p-1 uppercase tracking-wider text-[11px]">
                         Datos del Titular:
                       </div>
                       
@@ -943,8 +923,8 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                     </div>
 
                     {/* Section: Solicitante del servicio */}
-                    <div className="p-2 space-y-1 text-xs">
-                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
+                    <div className="p-2 space-y-1 text-xs bg-transparent">
+                      <div className="font-bold bg-transparent p-1 uppercase tracking-wider text-[11px]">
                         Solicitante del servicio:
                       </div>
 
@@ -962,8 +942,8 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
 
                   </div>
 
-                  {/* NOTAS OFICIALES (Exact text as in Image 2) */}
-                  <div className="border-2 border-slate-900 p-3 bg-white/95 text-[10.5px] sm:text-[11.5px] leading-snug space-y-1.5">
+                  {/* NOTAS OFICIALES (Exact text as in Image 2) - ALL TRANSPARENT */}
+                  <div className="border-2 border-slate-900 p-3 bg-transparent text-[10.5px] sm:text-[11.5px] leading-snug space-y-1.5">
                     <div className="font-black text-slate-900 uppercase">NOTAS:</div>
                     <p className="text-slate-800 text-justify">
                       * El presente informe tiene vigencia a partir de la fecha de expedición, siempre que las condiciones de la instalación eléctrica no sean modificadas.

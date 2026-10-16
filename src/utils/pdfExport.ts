@@ -1,5 +1,43 @@
 import jsPDF from 'jspdf';
-import { toJpeg } from 'html-to-image';
+import { toPng } from 'html-to-image';
+
+/**
+ * Loads the official security paper image (https://appdesignproyectos.com/seguridad.png)
+ * and returns it as a base64 data URL for embedding directly in the PDF canvas.
+ */
+async function loadSecurityBackground(): Promise<string | null> {
+  const urls = ['/seguridad.png', 'https://appdesignproyectos.com/seguridad.png'];
+  for (const url of urls) {
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 1600;
+            canvas.height = img.naturalHeight || 2071;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context not available'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.onerror = () => reject(new Error(`Failed to load ${url}`));
+        img.src = url;
+      });
+      if (dataUrl) return dataUrl;
+    } catch {
+      // Continue to next URL
+    }
+  }
+  return null;
+}
 
 export async function exportDocumentToPdf(
   elementId: string, 
@@ -12,20 +50,36 @@ export async function exportDocumentToPdf(
     return false;
   }
 
-  try {
-    const targetBgColor = isGreenSecurityPaper ? '#cbf3d2' : '#ffffff';
+  // Backup styles
+  const prevBgImage = element.style.backgroundImage;
+  const prevBgColor = element.style.backgroundColor;
+  const prevBoxShadow = element.style.boxShadow;
+  const prevBorder = element.style.border;
 
-    // Use html-to-image which natively supports Tailwind v4 "oklch" colors and modern CSS
-    const imgData = await toJpeg(element, {
-      quality: 0.98,
-      pixelRatio: 2.2, // Crisp 300 DPI print quality
-      backgroundColor: targetBgColor,
+  try {
+    // 1. Preload official security paper background image if requested
+    let securityBgDataUrl: string | null = null;
+    if (isGreenSecurityPaper) {
+      securityBgDataUrl = await loadSecurityBackground();
+    }
+
+    // 2. Set element background to transparent for the capture so all text, tables,
+    // borders, and signatures form a crisp transparent overlay over the background image
+    element.style.backgroundImage = 'none';
+    element.style.backgroundColor = 'transparent';
+    element.style.boxShadow = 'none';
+    element.style.border = 'none';
+
+    // 3. Capture high-resolution transparent PNG with 300 DPI quality
+    const contentPng = await toPng(element, {
+      pixelRatio: 2.2,
+      backgroundColor: undefined,
       style: {
         transform: 'none',
         margin: '0',
       },
       filter: (node) => {
-        // Exclude elements marked as no-print
+        // Exclude UI controls marked as no-print
         if (node instanceof HTMLElement && node.classList.contains('no-print')) {
           return false;
         }
@@ -33,7 +87,13 @@ export async function exportDocumentToPdf(
       },
     });
 
-    // Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
+    // Restore original styles to the DOM view
+    element.style.backgroundImage = prevBgImage;
+    element.style.backgroundColor = prevBgColor;
+    element.style.boxShadow = prevBoxShadow;
+    element.style.border = prevBorder;
+
+    // 4. Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -44,13 +104,29 @@ export async function exportDocumentToPdf(
     const pdfWidth = 215.9;
     const pdfHeight = 279.4;
 
+    // 5. Draw Full-Bleed Security Paper Background (Carta size)
+    if (isGreenSecurityPaper) {
+      if (securityBgDataUrl) {
+        // Official security paper image fills the entire Carta sheet seamlessly
+        pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      } else {
+        // Fallback fill if offline/failed
+        pdf.setFillColor(203, 243, 210); // #cbf3d2
+        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      }
+    } else {
+      // Clean white paper
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+    }
+
+    // 6. Calculate dimensions and margins for document content
     const margin = 5; // 5 mm margins
     const availableWidth = pdfWidth - margin * 2; // 205.9 mm
     const availableHeight = pdfHeight - margin * 2; // 269.4 mm
 
-    // Load image to determine exact dimensions
     const img = new Image();
-    img.src = imgData;
+    img.src = contentPng;
     await new Promise((resolve) => {
       img.onload = resolve;
     });
@@ -67,16 +143,10 @@ export async function exportDocumentToPdf(
     const posX = margin + (availableWidth - finalWidth) / 2;
     const posY = margin + (availableHeight - finalHeight) / 2;
 
-    // Paint the entire Letter page in authentic security green if green paper is selected
-    if (isGreenSecurityPaper) {
-      pdf.setFillColor(203, 243, 210); // #cbf3d2
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-    }
+    // 7. Overlay document content with transparent boxes
+    pdf.addImage(contentPng, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
 
-    // Add high-resolution document image
-    pdf.addImage(imgData, 'JPEG', posX, posY, finalWidth, finalHeight, undefined, 'SLOW');
-
-    // Trigger direct browser download
+    // 8. Direct browser file download
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
     const blob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(blob);
@@ -94,6 +164,13 @@ export async function exportDocumentToPdf(
     return true;
   } catch (error) {
     console.error('Error in exportDocumentToPdf:', error);
+    // Restore styles on error
+    if (element) {
+      element.style.backgroundImage = prevBgImage;
+      element.style.backgroundColor = prevBgColor;
+      element.style.boxShadow = prevBoxShadow;
+      element.style.border = prevBorder;
+    }
     alert('Ocurrió un inconveniente al exportar el PDF. Por favor reintente.');
     return false;
   }
