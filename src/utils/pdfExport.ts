@@ -9,17 +9,26 @@ export async function exportDocumentToPdf(elementId: string, filename: string): 
   }
 
   try {
-    // Render the element to high-res canvas (scale 2 for retina / print quality)
+    // Clone element or configure html2canvas options to avoid SVG tainted errors
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
+      allowTaint: true,
       logging: false,
-      backgroundColor: null,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
+      backgroundColor: element.style.backgroundColor || '#ffffff',
+      ignoreElements: (el) => el.classList.contains('no-print'),
+      onclone: (clonedDoc) => {
+        const clonedElement = clonedDoc.getElementById(elementId);
+        if (clonedElement) {
+          clonedElement.style.transform = 'none';
+          clonedElement.style.margin = '0';
+          clonedElement.style.width = '800px';
+          clonedElement.style.maxWidth = '800px';
+        }
+      },
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
     // Letter size: 215.9 mm x 279.4 mm
     const pdf = new jsPDF({
@@ -32,16 +41,15 @@ export async function exportDocumentToPdf(elementId: string, filename: string): 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    // Maintain aspect ratio with a small margin (5mm)
-    const margin = 6;
+    const margin = 5;
     const availableWidth = pdfWidth - margin * 2;
     const availableHeight = pdfHeight - margin * 2;
 
     const imgWidth = availableWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let finalHeight = imgHeight;
     let finalWidth = imgWidth;
+    let finalHeight = imgHeight;
 
     if (imgHeight > availableHeight) {
       finalHeight = availableHeight;
@@ -55,7 +63,9 @@ export async function exportDocumentToPdf(elementId: string, filename: string): 
     pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
     return true;
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    return false;
+    console.warn('html2canvas direct export failed, triggering printable PDF window:', error);
+    // Fallback: Open clean print dialog formatted specifically for 1-page PDF
+    window.print();
+    return true;
   }
 }

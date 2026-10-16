@@ -14,7 +14,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { RevisionReport } from '../types';
-import { generateBarcodeSvg, generateQrMatrixSvg } from '../utils/barcode';
+import { generateQrMatrixSvg } from '../utils/barcode';
 
 interface BarcodeVerifierProps {
   reports: RevisionReport[];
@@ -187,33 +187,24 @@ export const BarcodeVerifier: React.FC<BarcodeVerifierProps> = ({
           {/* Details Grid */}
           <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            {/* Visual Barcode & QR Verification Card */}
+            {/* Visual QR Verification Card */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col items-center justify-center text-center space-y-3">
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Código de Barras Oficial
+                Validación Digital Criptográfica
               </span>
               <div
-                className="w-full flex justify-center py-2 bg-white rounded border border-slate-200 p-2"
+                className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm"
                 dangerouslySetInnerHTML={{
-                  __html: generateBarcodeSvg(matchedReport.folio, 260, 42),
+                  __html: generateQrMatrixSvg(
+                    `CFP-VERIFY:${matchedReport.folio}:${matchedReport.claveExpediente}:${matchedReport.titularRfc}`,
+                    120
+                  ),
                 }}
               />
-
-              <div className="w-full pt-2 border-t border-slate-200 flex items-center justify-center gap-3">
-                <div
-                  className="p-1 bg-white border border-slate-300 rounded"
-                  dangerouslySetInnerHTML={{
-                    __html: generateQrMatrixSvg(
-                      `CFP:${matchedReport.folio}:${matchedReport.claveExpediente}`,
-                      80
-                    ),
-                  }}
-                />
-                <div className="text-left text-[11px] text-slate-600">
-                  <p className="font-bold text-slate-800">Sello Criptográfico</p>
-                  <p className="font-mono text-[10px] text-slate-500 truncate max-w-[130px]">{matchedReport.claveExpediente}</p>
-                  <p className="text-emerald-700 font-semibold mt-0.5">Certificado Activo</p>
-                </div>
+              <div className="text-[11px] text-slate-600 space-y-0.5">
+                <p className="font-bold text-slate-800 font-mono">Folio Oficial #{matchedReport.folio}</p>
+                <p className="text-[10px] text-slate-500 font-mono truncate max-w-[200px]">{matchedReport.claveExpediente}</p>
+                <p className="text-emerald-700 font-semibold pt-1">Sello Digital Vigente</p>
               </div>
             </div>
 

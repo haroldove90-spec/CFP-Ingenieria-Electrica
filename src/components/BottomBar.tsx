@@ -27,7 +27,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     },
     {
       id: 'revisiones' as ActiveTab,
-      label: 'Revisión',
+      label: 'Historial',
       icon: FileCheck2,
       badge: reportsCount,
     },

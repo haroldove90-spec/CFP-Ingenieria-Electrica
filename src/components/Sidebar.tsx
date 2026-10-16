@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'revisiones' as ActiveTab,
-      label: 'Revisión de Seguridad',
+      label: 'Historial de Dictámenes',
       icon: FileCheck2,
       badge: reportsCount.toString(),
     },

@@ -57,6 +57,7 @@ export interface RevisionReport {
   observaciones?: string;
   vigenciaHasta?: string;
   esMuestra?: boolean;
+  firmaDigital?: string; // Data URL of electronic signature
 }
 
 export interface SupabaseSettings {

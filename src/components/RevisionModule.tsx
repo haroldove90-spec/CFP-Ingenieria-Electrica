@@ -1,34 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
   Printer, 
   Download,
   Search, 
   FileText, 
-  CheckSquare, 
-  Square, 
   Edit3, 
   Trash2, 
   Eye, 
-  Barcode as BarcodeIcon, 
-  QrCode, 
+  PenTool,
   ShieldCheck, 
   AlertCircle,
   FileCheck,
-  Building2,
-  Calendar,
   Save,
   X,
-  Copy,
-  ChevronDown,
   Layers,
   ArrowLeft,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight,
+  Filter,
+  Check
 } from 'lucide-react';
 import { RevisionReport, UserRole } from '../types';
-import { generateBarcodeSvg, generateQrMatrixSvg } from '../utils/barcode';
+import { generateQrMatrixSvg } from '../utils/barcode';
 import { exportDocumentToPdf } from '../utils/pdfExport';
+import { SignatureModal } from './SignatureModal';
 
 interface RevisionModuleProps {
   reports: RevisionReport[];
@@ -44,18 +41,30 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
   activeRole,
   onSaveReport,
   onDeleteReport,
-  initialMode = 'document',
+  initialMode = 'list', // User requested list view by default
   autoCreate = false,
 }) => {
   const [selectedReportId, setSelectedReportId] = useState<string>(
     reports.length > 0 ? reports[0].id : ''
   );
   const [viewMode, setViewMode] = useState<'document' | 'form' | 'list'>(initialMode);
+  
+  // Intelligent Search in Document View
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // List View Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState<string>('todos');
+  
+  // Paper style: 'guilloche' (Verde Seguridad) or 'clean' (Papel Blanco)
   const [securityBgStyle, setSecurityBgStyle] = useState<'guilloche' | 'clean'>('guilloche');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfNotification, setPdfNotification] = useState<string | null>(null);
+
+  // Signature modal state
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<RevisionReport>>({});
@@ -70,7 +79,18 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
     }
   }, [autoCreate, initialMode]);
 
-  // Filtered reports
+  // Click outside listener for the intelligent search popover
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtered reports for list view
   const filteredReports = reports.filter(r => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -78,13 +98,28 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
       r.titularNombreComercial.toLowerCase().includes(term) ||
       r.titularRazonSocial.toLowerCase().includes(term) ||
       r.claveExpediente.toLowerCase().includes(term) ||
-      r.giroInstalacion.toLowerCase().includes(term);
+      r.giroInstalacion.toLowerCase().includes(term) ||
+      r.titularRfc.toLowerCase().includes(term);
 
     if (filterTipo === 'todos') return matchesSearch;
     if (filterTipo === 'media') return matchesSearch && r.tipoInstalacionPrincipal === 'Media y Baja Tensión';
     if (filterTipo === 'baja') return matchesSearch && r.tipoInstalacionPrincipal === 'Baja Tensión';
     return matchesSearch;
   });
+
+  // Filtered reports for intelligent search in document view
+  const docSearchMatches = docSearchQuery.trim() === '' 
+    ? reports.slice(0, 5) 
+    : reports.filter(r => {
+        const q = docSearchQuery.toLowerCase();
+        return (
+          r.folio.toLowerCase().includes(q) ||
+          r.titularNombreComercial.toLowerCase().includes(q) ||
+          r.titularRazonSocial.toLowerCase().includes(q) ||
+          r.titularRfc.toLowerCase().includes(q) ||
+          r.claveExpediente.toLowerCase().includes(q)
+        );
+      });
 
   const handleStartCreate = () => {
     const maxFolio = reports.reduce((max, r) => {
@@ -181,6 +216,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
       peritoTelefono: formData.peritoTelefono || '4431748638',
       resultadoDictamen: formData.resultadoDictamen || 'Favorable (Aprobado)',
       observaciones: formData.observaciones || '',
+      firmaDigital: formData.firmaDigital || selectedReport?.firmaDigital,
       esMuestra: false,
     };
 
@@ -189,23 +225,47 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
     setViewMode('document');
   };
 
-  const handleExportPdf = async () => {
+  const handleApplySignature = (signatureDataUrl: string) => {
     if (!selectedReport) return;
+    const updated = {
+      ...selectedReport,
+      firmaDigital: signatureDataUrl,
+    };
+    onSaveReport(updated);
+    setPdfNotification('¡Firma electrónica estampada con éxito en el dictamen!');
+    setTimeout(() => setPdfNotification(null), 4000);
+  };
+
+  const handleExportPdf = async (reportToExport?: RevisionReport) => {
+    const report = reportToExport || selectedReport;
+    if (!report) return;
+
+    // If currently in list view, select this report and switch to document
+    if (viewMode !== 'document') {
+      setSelectedReportId(report.id);
+      setViewMode('document');
+    }
+
     setIsExportingPdf(true);
     setPdfNotification(null);
 
-    const filename = `Dictamen_CFP_Folio_${selectedReport.folio}_${selectedReport.titularNombreComercial.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const success = await exportDocumentToPdf('official-peritaje-document', filename);
-    setIsExportingPdf(false);
+    const safeTitle = (report.titularNombreComercial || 'TITULAR')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .slice(0, 30);
+    const filename = `Dictamen_CFP_Folio_${report.folio}_${safeTitle}`;
 
-    if (success) {
-      setPdfNotification(`¡PDF descargado con éxito! Archivo: ${filename}.pdf`);
-      setTimeout(() => {
-        setPdfNotification(null);
-      }, 5000);
-    } else {
-      alert('Hubo un inconveniente al generar el PDF. Puedes usar también la opción de "Imprimir / Guardar como PDF" del navegador.');
-    }
+    // Allow DOM to settle
+    setTimeout(async () => {
+      const success = await exportDocumentToPdf('official-peritaje-document', filename);
+      setIsExportingPdf(false);
+
+      if (success) {
+        setPdfNotification(`¡PDF descargado con éxito! Archivo: ${filename}.pdf`);
+        setTimeout(() => {
+          setPdfNotification(null);
+        }, 5000);
+      }
+    }, 200);
   };
 
   const handlePrint = () => {
@@ -219,7 +279,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
       {pdfNotification && (
         <div className="p-3 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-between shadow-lg animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{pdfNotification}</span>
           </div>
           <button onClick={() => setPdfNotification(null)} className="text-white hover:opacity-80">
@@ -228,38 +288,29 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
         </div>
       )}
 
-      {/* Top Action Bar (No duplicate tabs) */}
+      {/* Top Action Bar */}
       <div className="no-print bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         
-        {/* Module Title */}
+        {/* Module Title: User requested "Historial de dictamenes" */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
             <FileCheck className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight uppercase">
-              REVISIÓN DE INSTALACIONES ELÉCTRICAS EN MATERIA DE SEGURIDAD
+              Historial de Dictámenes • CFP
             </h2>
             <p className="text-xs text-slate-400">
-              Formato Oficial Pericial NOM-001-SEDE-2012 • Colegio Federal de Peritos
+              Revisión de Instalaciones Eléctricas en Materia de Seguridad (NOM-001-SEDE-2012)
             </p>
           </div>
         </div>
 
-        {/* View Switchers & Export Buttons */}
+        {/* View Switchers & Create button */}
         <div className="flex items-center flex-wrap gap-2">
           
           {/* View Mode Buttons */}
           <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700/80">
-            <button
-              onClick={() => setViewMode('document')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                viewMode === 'document' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Ver Formato</span>
-            </button>
             <button
               onClick={() => setViewMode('list')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
@@ -267,38 +318,21 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Expedientes ({reports.length})</span>
+              <span>Lista de Dictámenes ({reports.length})</span>
             </button>
+
+            {selectedReport && (
+              <button
+                onClick={() => setViewMode('document')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  viewMode === 'document' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Ver Formato #{selectedReport.folio}</span>
+              </button>
+            )}
           </div>
-
-          {/* Export to PDF Button (Requested by User!) */}
-          {selectedReport && viewMode === 'document' && (
-            <button
-              onClick={handleExportPdf}
-              disabled={isExportingPdf}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-md disabled:opacity-50"
-              title="Descargar dictamen oficial en PDF con diseño pericial idéntico a la muestra"
-            >
-              {isExportingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              <span>{isExportingPdf ? 'Generando PDF...' : 'Exportar PDF'}</span>
-            </button>
-          )}
-
-          {/* Native Print / Browser PDF */}
-          {selectedReport && viewMode === 'document' && (
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
-              title="Imprimir formato pericial"
-            >
-              <Printer className="w-4 h-4 text-cyan-400" />
-              <span className="hidden sm:inline">Imprimir</span>
-            </button>
-          )}
 
           {/* New Report Button */}
           <button
@@ -311,14 +345,769 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
         </div>
       </div>
 
-      {/* Main Content Area based on viewMode */}
-      {viewMode === 'form' ? (
-        /* Form View */
+      {/* ============================================================== */}
+      {/* 1. LIST VIEW: Form of list as explicitly requested by the user */}
+      {/* ============================================================== */}
+      {viewMode === 'list' && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          
+          {/* Search and filters bar */}
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-96">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por folio, titular, RFC, ciudad..."
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select
+                value={filterTipo}
+                onChange={(e) => setFilterTipo(e.target.value)}
+                className="bg-white border border-slate-300 text-xs text-slate-700 rounded-xl px-3 py-2 focus:outline-none font-medium"
+              >
+                <option value="todos">Todos los Tipos de Tensión</option>
+                <option value="media">Media y Baja Tensión</option>
+                <option value="baja">Baja Tensión</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table List */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Folio</th>
+                  <th className="py-3 px-4">Titular / Giro Comercial</th>
+                  <th className="py-3 px-4">Tensión & Subestación</th>
+                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4">Firma Digital</th>
+                  <th className="py-3 px-4">Dictamen</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredReports.map((report) => (
+                  <tr
+                    key={report.id}
+                    onClick={() => {
+                      setSelectedReportId(report.id);
+                      setViewMode('document');
+                    }}
+                    className="hover:bg-amber-50/50 cursor-pointer transition"
+                  >
+                    <td className="py-3.5 px-4 font-black text-rose-600">
+                      <span className="text-sm font-mono font-black">#{report.folio}</span>
+                      {report.esMuestra && (
+                        <span className="ml-2 text-[9px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
+                          Muestra
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900 text-xs sm:text-sm">{report.titularNombreComercial}</div>
+                      <div className="text-[11px] text-slate-500 truncate max-w-sm">{report.giroInstalacion}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">RFC: {report.titularRfc} • {report.titularCiudadEstado}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="font-semibold text-slate-800 block">{report.tipoInstalacionPrincipal}</span>
+                      <span className="text-[11px] text-slate-500">Sub: {report.capacidadSubestacionKva} kVA • Carga: {report.cargaInstaladaKw} kW</span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600 font-mono font-medium">
+                      {report.fecha}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {report.firmaDigital ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                          Firmado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          <PenTool className="w-2.5 h-2.5 text-amber-600" />
+                          Pendiente
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          report.resultadoDictamen.includes('Favorable')
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {report.resultadoDictamen}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {/* Direct Button: Ver Formato Oficial */}
+                        <button
+                          onClick={() => {
+                            setSelectedReportId(report.id);
+                            setViewMode('document');
+                          }}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1 shadow-sm"
+                          title="Ver dictamen en papel oficial"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Ver Formato</span>
+                        </button>
+
+                        {/* Direct Button: Exportar PDF */}
+                        <button
+                          onClick={() => handleExportPdf(report)}
+                          className="p-1.5 hover:bg-rose-50 text-rose-600 border border-slate-200 rounded-lg transition"
+                          title="Exportar directamente a PDF"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleStartEdit(report)}
+                          className="p-1.5 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition"
+                          title="Editar información"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar reporte Folio #${report.folio}?`)) {
+                              onDeleteReport(report.id);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-rose-50 text-rose-500 border border-slate-200 rounded-lg transition"
+                          title="Eliminar registro"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredReports.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                      No se encontraron dictámenes con los filtros seleccionados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 2. DOCUMENT VIEW: Exact Replica with Security & White Paper  */}
+      {/* ============================================================== */}
+      {viewMode === 'document' && selectedReport && (
+        <div className="space-y-4">
+          
+          {/* Top Document Bar: INTELLIGENT SEARCH (Replaces select dropdown) + Controls */}
+          <div className="no-print bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 text-xs space-y-3 shadow-md">
+            
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              
+              {/* Back to list button & Intelligent Search Bar */}
+              <div className="flex items-center flex-1 gap-2">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 flex-shrink-0 cursor-pointer"
+                  title="Volver a la lista de dictámenes"
+                >
+                  <ArrowLeft className="w-4 h-4 text-amber-400" />
+                  <span>Volver a Lista</span>
+                </button>
+
+                {/* Intelligent Search Input Container with Suggestions Popover */}
+                <div ref={searchContainerRef} className="relative flex-1 max-w-xl">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={docSearchQuery}
+                      onChange={(e) => {
+                        setDocSearchQuery(e.target.value);
+                        setIsSearchFocused(true);
+                      }}
+                      onFocus={() => setIsSearchFocused(true)}
+                      placeholder={`Buscar expediente por Folio (#${selectedReport.folio}), Nombre, RFC...`}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    {docSearchQuery && (
+                      <button
+                        onClick={() => setDocSearchQuery('')}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Autocomplete / Instant Results Popover */}
+                  {isSearchFocused && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-800 max-h-72 overflow-y-auto">
+                      <div className="p-2 bg-slate-800/80 text-[10px] font-bold text-amber-400 uppercase tracking-wider flex justify-between">
+                        <span>Resultados Inteligentes ({docSearchMatches.length})</span>
+                        <span className="text-slate-400">Clic para cambiar de dictamen</span>
+                      </div>
+                      {docSearchMatches.map((r) => (
+                        <div
+                          key={r.id}
+                          onClick={() => {
+                            setSelectedReportId(r.id);
+                            setIsSearchFocused(false);
+                            setDocSearchQuery('');
+                          }}
+                          className={`p-2.5 hover:bg-slate-800 cursor-pointer transition flex items-center justify-between gap-3 ${
+                            r.id === selectedReport.id ? 'bg-amber-500/10 border-l-2 border-amber-400' : ''
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-rose-400 text-xs">#{r.folio}</span>
+                              <span className="font-bold text-white text-xs truncate">{r.titularNombreComercial}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{r.giroInstalacion}</div>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 flex-shrink-0">{r.fecha}</span>
+                        </div>
+                      ))}
+                      {docSearchMatches.length === 0 && (
+                        <div className="p-4 text-center text-slate-400 text-xs">
+                          No se encontró ningún expediente con "{docSearchQuery}".
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons: Paper Switcher, Sign Button, Export PDF, Print */}
+              <div className="flex items-center flex-wrap gap-2 justify-end">
+                
+                {/* Paper Style Switcher */}
+                <button
+                  onClick={() => setSecurityBgStyle(securityBgStyle === 'guilloche' ? 'clean' : 'guilloche')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition border ${
+                    securityBgStyle === 'clean'
+                      ? 'bg-slate-100 text-slate-900 border-white'
+                      : 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
+                  }`}
+                  title="Alternar entre Papel de Seguridad Verde o Papel Blanco"
+                >
+                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{securityBgStyle === 'guilloche' ? 'Papel Seguridad (Verde)' : 'Papel Blanco'}</span>
+                </button>
+
+                {/* Electronic Signature Button (Active for both formats) */}
+                <button
+                  onClick={() => setIsSignatureModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold rounded-xl text-xs shadow-md transition cursor-pointer"
+                  title="Firmar electrónicamente desde móvil o PC"
+                >
+                  <PenTool className="w-3.5 h-3.5 text-indigo-200" />
+                  <span>{selectedReport.firmaDigital ? 'Re-firmar Dictamen' : 'Firmar Electrónicamente'}</span>
+                </button>
+
+                {/* PDF Export Button */}
+                <button
+                  onClick={() => handleExportPdf()}
+                  disabled={isExportingPdf}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl text-xs shadow-md transition cursor-pointer disabled:opacity-50"
+                  title="Descargar archivo PDF oficial del dictamen"
+                >
+                  {isExportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  <span>{isExportingPdf ? 'Exportando...' : 'Exportar PDF'}</span>
+                </button>
+
+                {/* Print button */}
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  title="Imprimir formato físico"
+                >
+                  <Printer className="w-4 h-4 text-cyan-400" />
+                  <span className="hidden sm:inline">Imprimir</span>
+                </button>
+
+                {/* Edit Data */}
+                <button
+                  onClick={() => handleStartEdit(selectedReport)}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl transition cursor-pointer"
+                  title="Editar datos del informe"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              </div>
+
+            </div>
+
+            {/* Quick Folios Bar */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[11px] text-slate-400">
+              <span className="font-semibold text-slate-500">Expedientes:</span>
+              {reports.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedReportId(r.id)}
+                  className={`px-2.5 py-0.5 rounded-lg font-mono font-bold transition flex-shrink-0 cursor-pointer ${
+                    r.id === selectedReport.id
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  #{r.folio} {r.firmaDigital ? '✓' : ''}
+                </button>
+              ))}
+            </div>
+
+          </div>
+
+          {/* DOCUMENT HORIZONTAL OVERFLOW WRAPPER: Guarantees responsive layout without overlaps */}
+          <div className="overflow-x-auto pb-6">
+            <div className="min-w-[700px] flex justify-center">
+              
+              {/* THE OFFICIAL FORMAT DOCUMENT CONTAINER */}
+              <div
+                id="official-peritaje-document"
+                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 transition-colors duration-200 relative print:shadow-none print:border-none print:m-0 print:p-2 ${
+                  securityBgStyle === 'guilloche'
+                    ? 'bg-[#ebf8ee] text-slate-900'
+                    : 'bg-white text-slate-900'
+                }`}
+                style={
+                  securityBgStyle === 'guilloche'
+                    ? {
+                        backgroundImage: `repeating-linear-gradient(
+                          45deg,
+                          rgba(16, 185, 129, 0.04) 0px,
+                          rgba(16, 185, 129, 0.04) 3px,
+                          transparent 3px,
+                          transparent 8px
+                        ), repeating-linear-gradient(
+                          -45deg,
+                          rgba(5, 150, 105, 0.03) 0px,
+                          rgba(5, 150, 105, 0.03) 3px,
+                          transparent 3px,
+                          transparent 8px
+                        )`,
+                      }
+                    : {}
+                }
+              >
+                {/* Subtle Watermark repeating SEGURIDAD (Only in security paper) */}
+                {securityBgStyle === 'guilloche' && (
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10 flex flex-wrap gap-12 p-8 select-none">
+                    {Array.from({ length: 48 }).map((_, i) => (
+                      <span key={i} className="text-xs font-black tracking-widest text-emerald-900 rotate-[-20deg]">
+                        SEGURIDAD
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative z-10 space-y-4 text-xs sm:text-sm font-sans">
+                  
+                  {/* DOCUMENT TITLE */}
+                  <div className="text-center pb-2">
+                    <h1 className="text-sm sm:text-lg font-black tracking-wider text-slate-900 uppercase border-b-2 border-slate-900 pb-1 inline-block">
+                      REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD
+                    </h1>
+                  </div>
+
+                  {/* TOP ROW: Tipo de instalación (Left) & Official Logo (Right) */}
+                  <div className="flex items-center justify-between gap-4 pt-1">
+                    
+                    {/* Left: Checkboxes Tipo de instalación */}
+                    <div className="space-y-1.5">
+                      <span className="font-bold text-slate-900 block text-xs">Tipo de instalación:</span>
+                      
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
+                          {selectedReport.tipoInstalacionPrincipal === 'Baja Tensión' ? 'X' : ''}
+                        </div>
+                        <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Baja Tensión</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
+                          {selectedReport.tipoInstalacionPrincipal === 'Media y Baja Tensión' ? 'X' : ''}
+                        </div>
+                        <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Media y Baja Tensión</span>
+                      </div>
+                    </div>
+
+                    {/* Right: Official Crest Logo of COLEGIO FEDERAL PERITOS CFP */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+                        <img
+                          src="/logo-cfp.svg"
+                          alt="Colegio Federal Peritos Logo"
+                          className="w-full h-full object-contain filter drop-shadow"
+                        />
+                      </div>
+                      <div className="flex flex-col text-left leading-tight font-serif">
+                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
+                          COLEGIO
+                        </span>
+                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
+                          FEDERAL
+                        </span>
+                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
+                          PERITOS
+                        </span>
+                        <span className="text-[10px] font-bold text-amber-700 tracking-widest">
+                          CFP
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* LEGAL PREAMBLE TEXT */}
+                  <div className="text-justify text-[11px] sm:text-xs leading-relaxed text-slate-900 font-serif border-y border-slate-800/80 py-2.5 my-2">
+                    De conformidad a lo dispuesto en el Artículo 5° Constitucional, cumpliendo con los requerimientos del Artículo 12, referente al ejercicio profesional, en pleno ejercicio de los derechos establecidos en el Artículo 21 y cumpliendo con las obligaciones establecidas en el Artículo 22, de la Ley de Profesiones del Estado de Michoacán de Ocampo, en mi carácter de <strong className="font-black">Perito Dictaminador de Instalaciones Eléctricas en Media y Baja Tensión</strong>, afiliado al <strong className="font-black">Colegio Federal de Peritos, A.C.</strong>, presento el informe en materia de seguridad, de la instalación que se describe a continuación:
+                  </div>
+
+                  {/* OFFICIAL DATA TABLE: RESPONSIVE FIXED - NO COLLISION */}
+                  <div className="border-2 border-slate-900 divide-y-2 divide-slate-900 bg-white/95">
+                    
+                    {/* Row 1: Folio, Clave, Fecha */}
+                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs font-bold">
+                      <div className="col-span-4 sm:col-span-3 p-1.5 bg-slate-100 flex items-center min-w-0">
+                        <span className="truncate">Informe de revisión No.{selectedReport.folio}</span>
+                      </div>
+                      <div className="col-span-5 sm:col-span-6 p-1.5 text-center font-mono text-[10px] sm:text-xs flex items-center justify-center break-all">
+                        {selectedReport.claveExpediente}
+                      </div>
+                      <div className="col-span-3 sm:col-span-3 p-1.5 flex items-center justify-end font-bold pr-2 min-w-0">
+                        <span className="truncate">Fecha: <strong className="font-mono">{selectedReport.fecha}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Giro de la instalación */}
+                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs">
+                      <div className="col-span-4 sm:col-span-3 p-1.5 font-bold bg-slate-50 flex items-center">
+                        Giro de la instalación:
+                      </div>
+                      <div className="col-span-8 sm:col-span-9 p-1.5 font-bold uppercase tracking-tight text-[11px] sm:text-xs flex items-center">
+                        {selectedReport.giroInstalacion}
+                      </div>
+                    </div>
+
+                    {/* Row 3: 3 Technical Columns */}
+                    <div className="grid grid-cols-3 divide-x-2 divide-slate-900 text-[11px] sm:text-xs">
+                      
+                      {/* Col 1: Tensión eléctrica de suministro & Subestación */}
+                      <div className="p-2 space-y-1.5">
+                        <div className="font-bold border-b border-slate-900 pb-1">Tension eléctrica de suministro:</div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tensionSuministro === 'Menos de 1000 V' ? 'X' : ''}
+                          </div>
+                          <span>Menos de 1000 V</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tensionSuministro === '1000 V o más' ? 'X' : ''}
+                          </div>
+                          <span>1000 V o más</span>
+                        </div>
+
+                        <div className="pt-2 space-y-1">
+                          <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
+                            <span>Capacidad de Subestación:</span>
+                            <span className="font-bold font-mono">{selectedReport.capacidadSubestacionKva} kVA</span>
+                          </div>
+                          <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
+                            <span>Carga instalada:</span>
+                            <span className="font-bold font-mono">{selectedReport.cargaInstaladaKw} kW</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Col 2: Tipo de instalación */}
+                      <div className="p-2 space-y-1.5">
+                        <div className="font-bold border-b border-slate-900 pb-1">Tipo de instalación:</div>
+                        <div className="flex items-center justify-between">
+                          <span>Lugar de concentración pública</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.clasificacionInstalacion === 'Lugar de concentración pública' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Area peligrosa</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.clasificacionInstalacion === 'Area peligrosa' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Industria</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.clasificacionInstalacion === 'Industria' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Otro</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.clasificacionInstalacion === 'Otro' ? 'X' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Col 3: Tipo de servicio */}
+                      <div className="p-2 space-y-1.5">
+                        <div className="font-bold border-b border-slate-900 pb-1">Tipo de servicio:</div>
+                        <div className="flex items-center justify-between">
+                          <span>Servicio Nuevo</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tipoServicio === 'Servicio Nuevo' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Modificación de instalación</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tipoServicio === 'Modificación de instalación' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Revisión periódica</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tipoServicio === 'Revisión periódica' ? 'X' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Cambio de Razón social</span>
+                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
+                            {selectedReport.tipoServicio === 'Cambio de Razón social' ? 'X' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Section: Datos del Titular */}
+                    <div className="p-2 space-y-1 text-xs">
+                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
+                        Datos del Titular:
+                      </div>
+                      
+                      <div className="space-y-1 px-1">
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Nombre Comercial:</span>
+                          <span className="font-bold text-slate-900 uppercase flex-1">{selectedReport.titularNombreComercial}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Nombre o Razon Social:</span>
+                          <span className="font-semibold text-slate-900 uppercase flex-1">{selectedReport.titularRazonSocial}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">RFC:</span>
+                          <span className="font-mono font-bold text-slate-900 uppercase">{selectedReport.titularRfc}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Calle y No:</span>
+                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularCalleNumero}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Colonia o Población:</span>
+                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularColonia}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Municipio o Delegación:</span>
+                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularMunicipio}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Ciudad y Estado:</span>
+                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularCiudadEstado}</span>
+                        </div>
+
+                        <div className="flex items-baseline gap-6 border-b border-slate-300 pb-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800">Código postal:</span>
+                            <span className="font-mono font-bold text-slate-900">{selectedReport.titularCodigoPostal}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800">Teléfono:</span>
+                            <span className="font-mono font-bold text-slate-900">{selectedReport.titularTelefono}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section: Solicitante del servicio */}
+                    <div className="p-2 space-y-1 text-xs">
+                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
+                        Solicitante del servicio:
+                      </div>
+
+                      <div className="space-y-1 px-1">
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Nombre:</span>
+                          <span className="font-bold text-slate-900 uppercase flex-1">{selectedReport.solicitanteNombre}</span>
+                        </div>
+                        <div className="flex items-baseline gap-1 border-b border-slate-300 pb-0.5">
+                          <span className="w-44 font-bold text-slate-800">Teléfono:</span>
+                          <span className="font-mono font-medium text-slate-900">{selectedReport.solicitanteTelefono}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* NOTAS OFICIALES (Exact text as in Image 2) */}
+                  <div className="border-2 border-slate-900 p-3 bg-white/95 text-[10.5px] sm:text-[11.5px] leading-snug space-y-1.5">
+                    <div className="font-black text-slate-900 uppercase">NOTAS:</div>
+                    <p className="text-slate-800 text-justify">
+                      * El presente informe tiene vigencia a partir de la fecha de expedición, siempre que las condiciones de la instalación eléctrica no sean modificadas.
+                    </p>
+                    <p className="text-slate-800 text-justify">
+                      * El titular o usuario declara que conoce sus derechos, obligaciones y responsabilidades, derivados de la utilización y conservación de la instalación eléctrica, para garantizar su funcionamiento satisfactorio acorde al uso previsto.
+                    </p>
+                    <p className="text-slate-800 text-justify">
+                      * El contenido del presente informe, resume la evaluación de las disposiciones aplicables de la <strong className="font-black">NORMA OFICIAL MEXICANA, NOM-001-SEDE-2012</strong>, en adelante NOM.
+                    </p>
+                  </div>
+
+                  {/* PERITO RESPONSABLE SECTION */}
+                  <div className="pt-2 space-y-3">
+                    
+                    {/* Header Perito Responsable */}
+                    <div className="text-center font-black tracking-widest text-slate-900 uppercase text-xs sm:text-sm">
+                      PERITO RESPONSABLE
+                    </div>
+
+                    {/* Touch-Friendly Electronic Signature Area */}
+                    <div className="flex flex-col items-center justify-center relative">
+                      
+                      {selectedReport.firmaDigital ? (
+                        <div className="relative group cursor-pointer" onClick={() => setIsSignatureModalOpen(true)}>
+                          <img
+                            src={selectedReport.firmaDigital}
+                            alt="Firma Electrónica del Perito"
+                            className="h-20 sm:h-24 object-contain filter drop-shadow-sm select-none"
+                          />
+                          <div className="no-print absolute inset-0 bg-amber-500/10 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition">
+                            <span className="bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                              Tocar para cambiar firma
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsSignatureModalOpen(true)}
+                          className="no-print h-20 w-72 border-2 border-dashed border-amber-600/60 bg-amber-50/50 hover:bg-amber-100/60 rounded-xl flex flex-col items-center justify-center p-2 text-center transition cursor-pointer mb-1 shadow-sm"
+                        >
+                          <PenTool className="w-5 h-5 text-amber-600 mb-1" />
+                          <span className="text-xs font-bold text-amber-900">
+                            Presione aquí para Firmar Electrónicamente
+                          </span>
+                          <span className="text-[10px] text-amber-700">
+                            Compatible con pantalla táctil móvil y lápiz
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Signature underline */}
+                      <div className="w-80 border-b-2 border-slate-900 mb-1"></div>
+                      <span className="font-black text-slate-900 text-xs sm:text-sm tracking-wide">
+                        {selectedReport.peritoNombre}
+                      </span>
+                    </div>
+
+                    {/* QR Code + Official Credentials (BARCODE REMOVED AS REQUESTED) */}
+                    <div className="grid grid-cols-12 gap-4 items-center pt-2">
+                      
+                      {/* Left: QR Code Matrix with Seal */}
+                      <div className="col-span-3 flex flex-col items-center justify-center">
+                        <div
+                          className="p-1 bg-white border border-slate-300 rounded shadow-sm"
+                          dangerouslySetInnerHTML={{
+                            __html: generateQrMatrixSvg(
+                              `CFP-VERIFY:${selectedReport.folio}:${selectedReport.claveExpediente}:${selectedReport.titularRfc}`,
+                              105
+                            ),
+                          }}
+                        />
+                        <span className="text-[9px] font-mono font-bold text-slate-600 mt-1">
+                          VALIDACIÓN DIGITAL
+                        </span>
+                      </div>
+
+                      {/* Right: Perito Official Credentials & Folio in Red */}
+                      <div className="col-span-9 space-y-1 text-xs font-serif pl-2">
+                        <div>
+                          <span className="font-bold text-slate-900">NO. de Afiliación CFP:</span>{' '}
+                          <span className="font-mono font-semibold text-slate-800">{selectedReport.peritoAfiliacion}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900">Cédula Profesional:</span>{' '}
+                          <span className="font-mono font-bold text-slate-900">{selectedReport.peritoCedula}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900">Correo electronico:</span>{' '}
+                          <span className="text-slate-800 font-mono">{selectedReport.peritoEmail}</span>
+                        </div>
+                        
+                        <div className="flex items-baseline justify-between pt-1">
+                          <div>
+                            <span className="font-bold text-slate-900">Teléfono:</span>{' '}
+                            <span className="font-mono font-bold text-slate-800">{selectedReport.peritoTelefono}</span>
+                          </div>
+                          
+                          <div className="text-right">
+                            <span className="font-black text-slate-900 mr-2 text-sm">FOLIO:</span>
+                            <span className="font-black text-rose-600 text-base sm:text-lg font-mono">
+                              {selectedReport.folio}
+                            </span>
+                          </div>
+                        </div>
+
+                        {selectedReport.firmaDigital && (
+                          <div className="pt-1 text-[10px] text-emerald-800 font-mono flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Dictamen firmado electrónicamente conforme a la NOM-001-SEDE-2012</span>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 3. FORM VIEW: Create / Edit Report Form                         */}
+      {/* ============================================================== */}
+      {viewMode === 'form' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-8">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-6">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setViewMode('document')}
+                onClick={() => setViewMode('list')}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -333,7 +1122,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
               </div>
             </div>
             <button
-              onClick={() => setViewMode('document')}
+              onClick={() => setViewMode('list')}
               className="text-slate-400 hover:text-slate-600 p-2"
             >
               <X className="w-5 h-5" />
@@ -438,7 +1227,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
               />
             </div>
 
-            {/* 3 Columnas Técnicas: Tensión, Clasificación, Tipo de Servicio */}
+            {/* 3 Columnas Técnicas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
               {/* Tensión & Capacidad */}
@@ -760,7 +1549,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => setViewMode('document')}
+                onClick={() => setViewMode('list')}
                 className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold"
               >
                 Cancelar
@@ -775,580 +1564,17 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
             </div>
           </form>
         </div>
-      ) : viewMode === 'list' ? (
-        /* List View */
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          {/* Search and filters bar */}
-          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por folio, titular, RFC..."
-                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
+      )}
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={filterTipo}
-                onChange={(e) => setFilterTipo(e.target.value)}
-                className="bg-white border border-slate-300 text-xs text-slate-700 rounded-xl px-3 py-1.5 focus:outline-none"
-              >
-                <option value="todos">Todos los Tipos</option>
-                <option value="media">Media y Baja Tensión</option>
-                <option value="baja">Baja Tensión</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Folio</th>
-                  <th className="py-3 px-4">Titular / Giro</th>
-                  <th className="py-3 px-4">Tensión / Subestación</th>
-                  <th className="py-3 px-4">Fecha</th>
-                  <th className="py-3 px-4">Dictamen</th>
-                  <th className="py-3 px-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredReports.map((report) => (
-                  <tr
-                    key={report.id}
-                    onClick={() => {
-                      setSelectedReportId(report.id);
-                      setViewMode('document');
-                    }}
-                    className="hover:bg-amber-50/50 cursor-pointer transition"
-                  >
-                    <td className="py-3 px-4 font-black text-rose-600">
-                      #{report.folio}
-                      {report.esMuestra && (
-                        <span className="ml-2 text-[9px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
-                          Demo
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-900">{report.titularNombreComercial}</div>
-                      <div className="text-[11px] text-slate-500 truncate max-w-xs">{report.giroInstalacion}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-slate-700 block">{report.tipoInstalacionPrincipal}</span>
-                      <span className="text-[11px] text-slate-500">Sub: {report.capacidadSubestacionKva} kVA • Carga: {report.cargaInstaladaKw} kW</span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 font-mono">
-                      {report.fecha}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          report.resultadoDictamen.includes('Favorable')
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {report.resultadoDictamen}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            setSelectedReportId(report.id);
-                            setViewMode('document');
-                          }}
-                          className="p-1.5 hover:bg-slate-100 rounded text-slate-600"
-                          title="Ver formato oficial"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleStartEdit(report)}
-                          className="p-1.5 hover:bg-slate-100 rounded text-amber-600"
-                          title="Editar"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Eliminar reporte Folio #${report.folio}?`)) {
-                              onDeleteReport(report.id);
-                            }
-                          }}
-                          className="p-1.5 hover:bg-slate-100 rounded text-rose-600"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredReports.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
-                      No se encontraron dictámenes con los filtros seleccionados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        /* Document View (Exact Official Security Format Replica) */
-        selectedReport && (
-          <div className="space-y-4">
-            {/* Document Controls */}
-            <div className="no-print flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-xs gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-300 font-semibold">Expediente:</span>
-                <select
-                  value={selectedReport.id}
-                  onChange={(e) => setSelectedReportId(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none"
-                >
-                  {reports.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Folio #{r.folio} — {r.titularNombreComercial} ({r.fecha})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center flex-wrap gap-2">
-                {/* Paper Style Switcher */}
-                <button
-                  onClick={() => setSecurityBgStyle(securityBgStyle === 'guilloche' ? 'clean' : 'guilloche')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white"
-                  title="Alternar entre papel de seguridad verde o fondo blanco limpio"
-                >
-                  <Layers className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{securityBgStyle === 'guilloche' ? 'Papel Seguridad (Verde)' : 'Papel Blanco'}</span>
-                </button>
-
-                <button
-                  onClick={handleExportPdf}
-                  disabled={isExportingPdf}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition"
-                >
-                  {isExportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  <span>Exportar PDF</span>
-                </button>
-
-                <button
-                  onClick={() => handleStartEdit(selectedReport)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Editar Datos</span>
-                </button>
-              </div>
-            </div>
-
-            {/* THE OFFICIAL FORMAT DOCUMENT CONTAINER */}
-            <div className="flex justify-center">
-              <div
-                id="official-peritaje-document"
-                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 transition-colors duration-200 relative print:shadow-none print:border-none print:m-0 print:p-4 ${
-                  securityBgStyle === 'guilloche'
-                    ? 'bg-[#ebf8ee] text-slate-900'
-                    : 'bg-white text-slate-900'
-                }`}
-                style={
-                  securityBgStyle === 'guilloche'
-                    ? {
-                        backgroundImage: `repeating-linear-gradient(
-                          45deg,
-                          rgba(16, 185, 129, 0.04) 0px,
-                          rgba(16, 185, 129, 0.04) 3px,
-                          transparent 3px,
-                          transparent 8px
-                        ), repeating-linear-gradient(
-                          -45deg,
-                          rgba(5, 150, 105, 0.03) 0px,
-                          rgba(5, 150, 105, 0.03) 3px,
-                          transparent 3px,
-                          transparent 8px
-                        )`,
-                      }
-                    : {}
-                }
-              >
-                {/* Subtle Watermark repeating SEGURIDAD */}
-                {securityBgStyle === 'guilloche' && (
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10 flex flex-wrap gap-12 p-8 select-none">
-                    {Array.from({ length: 48 }).map((_, i) => (
-                      <span key={i} className="text-xs font-black tracking-widest text-emerald-900 rotate-[-20deg]">
-                        SEGURIDAD
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="relative z-10 space-y-4 text-xs sm:text-sm font-sans">
-                  
-                  {/* DOCUMENT TITLE */}
-                  <div className="text-center pb-2">
-                    <h1 className="text-sm sm:text-lg font-black tracking-wider text-slate-900 uppercase border-b-2 border-slate-900 pb-1 inline-block">
-                      REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD
-                    </h1>
-                  </div>
-
-                  {/* TOP ROW: Tipo de instalación (Left) & Official Logo (Right) */}
-                  <div className="flex items-center justify-between gap-4 pt-1">
-                    
-                    {/* Left: Checkboxes Tipo de instalación */}
-                    <div className="space-y-1.5">
-                      <span className="font-bold text-slate-900 block text-xs">Tipo de instalación:</span>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
-                          {selectedReport.tipoInstalacionPrincipal === 'Baja Tensión' ? 'X' : ''}
-                        </div>
-                        <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Baja Tensión</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-slate-900 flex items-center justify-center font-bold text-sm bg-white">
-                          {selectedReport.tipoInstalacionPrincipal === 'Media y Baja Tensión' ? 'X' : ''}
-                        </div>
-                        <span className="font-medium text-xs sm:text-sm">Instalación Electrica de Media y Baja Tensión</span>
-                      </div>
-                    </div>
-
-                    {/* Right: Official Crest Logo of COLEGIO FEDERAL PERITOS CFP */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
-                        <img
-                          src="/logo-cfp.svg"
-                          alt="Colegio Federal Peritos Logo"
-                          className="w-full h-full object-contain filter drop-shadow"
-                        />
-                      </div>
-                      <div className="flex flex-col text-left leading-tight font-serif">
-                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
-                          COLEGIO
-                        </span>
-                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
-                          FEDERAL
-                        </span>
-                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">
-                          PERITOS
-                        </span>
-                        <span className="text-[10px] font-bold text-amber-700 tracking-widest">
-                          CFP
-                        </span>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* LEGAL PREAMBLE TEXT */}
-                  <div className="text-justify text-[11px] sm:text-xs leading-relaxed text-slate-900 font-serif border-y border-slate-800/80 py-2.5 my-2">
-                    De conformidad a lo dispuesto en el Artículo 5° Constitucional, cumpliendo con los requerimientos del Artículo 12, referente al ejercicio profesional, en pleno ejercicio de los derechos establecidos en el Artículo 21 y cumpliendo con las obligaciones establecidas en el Artículo 22, de la Ley de Profesiones del Estado de Michoacán de Ocampo, en mi carácter de <strong className="font-black">Perito Dictaminador de Instalaciones Eléctricas en Media y Baja Tensión</strong>, afiliado al <strong className="font-black">Colegio Federal de Peritos, A.C.</strong>, presento el informe en materia de seguridad, de la instalación que se describe a continuación:
-                  </div>
-
-                  {/* OFFICIAL DATA TABLE (Black bordered table as in Image 1) */}
-                  <div className="border-2 border-slate-900 divide-y-2 divide-slate-900 bg-white/90">
-                    
-                    {/* Row 1: Folio, Clave, Fecha */}
-                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs font-bold">
-                      <div className="col-span-3 sm:col-span-3 p-1.5 bg-slate-100 flex items-center">
-                        Informe de revisión No.{selectedReport.folio}
-                      </div>
-                      <div className="col-span-6 sm:col-span-6 p-1.5 text-center font-mono text-[11px] sm:text-xs flex items-center justify-center">
-                        {selectedReport.claveExpediente}
-                      </div>
-                      <div className="col-span-3 sm:col-span-3 p-1.5 flex items-center justify-end font-bold pr-2">
-                        Fecha: <span className="ml-1 font-mono">{selectedReport.fecha}</span>
-                      </div>
-                    </div>
-
-                    {/* Row 2: Giro de la instalación */}
-                    <div className="grid grid-cols-12 divide-x-2 divide-slate-900 text-xs">
-                      <div className="col-span-4 sm:col-span-3 p-1.5 font-bold bg-slate-50 flex items-center">
-                        Giro de la instalación:
-                      </div>
-                      <div className="col-span-8 sm:col-span-9 p-1.5 font-bold uppercase tracking-tight text-[11px] sm:text-xs flex items-center">
-                        {selectedReport.giroInstalacion}
-                      </div>
-                    </div>
-
-                    {/* Row 3: 3 Technical Columns */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 divide-y-2 md:divide-y-0 md:divide-x-2 divide-slate-900 text-[11px] sm:text-xs">
-                      
-                      {/* Col 1: Tensión eléctrica de suministro & Subestación */}
-                      <div className="p-2 space-y-1.5">
-                        <div className="font-bold border-b border-slate-900 pb-1">Tension eléctrica de suministro:</div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tensionSuministro === 'Menos de 1000 V' ? 'X' : ''}
-                          </div>
-                          <span>Menos de 1000 V</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tensionSuministro === '1000 V o más' ? 'X' : ''}
-                          </div>
-                          <span>1000 V o más</span>
-                        </div>
-
-                        <div className="pt-2 space-y-1">
-                          <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
-                            <span>Capacidad de Subestación:</span>
-                            <span className="font-bold font-mono">{selectedReport.capacidadSubestacionKva} kVA</span>
-                          </div>
-                          <div className="flex justify-between border-b border-dotted border-slate-400 pb-0.5">
-                            <span>Carga instalada:</span>
-                            <span className="font-bold font-mono">{selectedReport.cargaInstaladaKw} kW</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Col 2: Tipo de instalación */}
-                      <div className="p-2 space-y-1.5">
-                        <div className="font-bold border-b border-slate-900 pb-1">Tipo de instalación:</div>
-                        <div className="flex items-center justify-between">
-                          <span>Lugar de concentración pública</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.clasificacionInstalacion === 'Lugar de concentración pública' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Area peligrosa</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.clasificacionInstalacion === 'Area peligrosa' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Industria</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.clasificacionInstalacion === 'Industria' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Otro</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.clasificacionInstalacion === 'Otro' ? 'X' : ''}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Col 3: Tipo de servicio */}
-                      <div className="p-2 space-y-1.5">
-                        <div className="font-bold border-b border-slate-900 pb-1">Tipo de servicio:</div>
-                        <div className="flex items-center justify-between">
-                          <span>Servicio Nuevo</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tipoServicio === 'Servicio Nuevo' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Modificación de instalación</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tipoServicio === 'Modificación de instalación' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Revisión periódica</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tipoServicio === 'Revisión periódica' ? 'X' : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Cambio de Razón social</span>
-                          <div className="w-4 h-4 border border-slate-900 flex items-center justify-center font-bold text-xs bg-white">
-                            {selectedReport.tipoServicio === 'Cambio de Razón social' ? 'X' : ''}
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* Section: Datos del Titular */}
-                    <div className="p-2 space-y-1 text-xs">
-                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
-                        Datos del Titular:
-                      </div>
-                      
-                      <div className="space-y-1 px-1">
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Nombre Comercial:</span>
-                          <span className="font-bold text-slate-900 uppercase flex-1">{selectedReport.titularNombreComercial}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Nombre o Razon Social:</span>
-                          <span className="font-semibold text-slate-900 uppercase flex-1">{selectedReport.titularRazonSocial}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">RFC:</span>
-                          <span className="font-mono font-bold text-slate-900 uppercase">{selectedReport.titularRfc}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Calle y No:</span>
-                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularCalleNumero}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Colonia o Población:</span>
-                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularColonia}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Municipio o Delegación:</span>
-                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularMunicipio}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Ciudad y Estado:</span>
-                          <span className="font-medium text-slate-900 uppercase">{selectedReport.titularCiudadEstado}</span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 border-b border-slate-300 pb-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-800">Código postal:</span>
-                            <span className="font-mono font-bold text-slate-900">{selectedReport.titularCodigoPostal}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-800">Teléfono</span>
-                            <span className="font-mono font-bold text-slate-900">{selectedReport.titularTelefono}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section: Solicitante del servicio */}
-                    <div className="p-2 space-y-1 text-xs">
-                      <div className="font-bold bg-slate-100 p-1 uppercase tracking-wider text-[11px]">
-                        Solicitante del servicio:
-                      </div>
-
-                      <div className="space-y-1 px-1">
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Nombre:</span>
-                          <span className="font-bold text-slate-900 uppercase flex-1">{selectedReport.solicitanteNombre}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 border-b border-slate-300 pb-0.5">
-                          <span className="w-40 font-bold text-slate-800">Teléfono:</span>
-                          <span className="font-mono font-medium text-slate-900">{selectedReport.solicitanteTelefono}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* NOTAS OFICIALES (Exact text as in Image 2) */}
-                  <div className="border-2 border-slate-900 p-3 bg-white/95 text-[10.5px] sm:text-[11.5px] leading-snug space-y-1.5">
-                    <div className="font-black text-slate-900 uppercase">NOTAS:</div>
-                    <p className="text-slate-800 text-justify">
-                      * El presente informe tiene vigencia a partir de la fecha de expedición, siempre que las condiciones de la instalación eléctrica no sean modificadas.
-                    </p>
-                    <p className="text-slate-800 text-justify">
-                      * El titular o usuario declara que conoce sus derechos, obligaciones y responsabilidades, derivados de la utilización y conservación de la instalación eléctrica, para garantizar su funcionamiento satisfactorio acorde al uso previsto.
-                    </p>
-                    <p className="text-slate-800 text-justify">
-                      * El contenido del presente informe, resume la evaluación de las disposiciones aplicables de la <strong className="font-black">NORMA OFICIAL MEXICANA, NOM-001-SEDE-2012</strong>, en adelante NOM.
-                    </p>
-                  </div>
-
-                  {/* PERITO RESPONSABLE SECTION (As in Image 2) */}
-                  <div className="pt-4 space-y-4">
-                    
-                    {/* Header Perito Responsable */}
-                    <div className="text-center font-black tracking-widest text-slate-900 uppercase text-xs sm:text-sm">
-                      PERITO RESPONSABLE
-                    </div>
-
-                    {/* Signature Line */}
-                    <div className="flex flex-col items-center justify-center pt-6">
-                      <div className="w-72 border-b-2 border-slate-900 mb-1"></div>
-                      <span className="font-black text-slate-900 text-xs sm:text-sm tracking-wide">
-                        {selectedReport.peritoNombre}
-                      </span>
-                    </div>
-
-                    {/* QR Code + Barcode + Official Credentials Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center pt-2">
-                      
-                      {/* Left: QR Code Matrix with Seal */}
-                      <div className="sm:col-span-3 flex flex-col items-center justify-center">
-                        <div
-                          className="p-1 bg-white border border-slate-300 rounded shadow-sm"
-                          dangerouslySetInnerHTML={{
-                            __html: generateQrMatrixSvg(
-                              `CFP-VERIFY:${selectedReport.folio}:${selectedReport.claveExpediente}:${selectedReport.titularRfc}`,
-                              105
-                            ),
-                          }}
-                        />
-                        <span className="text-[9px] font-mono font-bold text-slate-600 mt-1">
-                          VALIDACIÓN DIGITAL
-                        </span>
-                      </div>
-
-                      {/* Center: Perito Credentials + Barcode (Code 128 as explicitly requested!) */}
-                      <div className="sm:col-span-9 space-y-2">
-                        
-                        {/* Barcode representation */}
-                        <div className="p-2 bg-white border border-slate-300 rounded shadow-sm flex flex-col items-center">
-                          <div
-                            className="w-full flex justify-center"
-                            dangerouslySetInnerHTML={{
-                              __html: generateBarcodeSvg(selectedReport.folio, 320, 36),
-                            }}
-                          />
-                        </div>
-
-                        {/* Official Credentials grid */}
-                        <div className="text-[11px] sm:text-xs font-serif space-y-0.5">
-                          <div>
-                            <span className="font-bold text-slate-900">NO. de Afiliación CFP:</span>{' '}
-                            <span className="font-mono font-semibold text-slate-800">{selectedReport.peritoAfiliacion}</span>
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900">Cédula Profesional:</span>{' '}
-                            <span className="font-mono font-bold text-slate-900">{selectedReport.peritoCedula}</span>
-                          </div>
-                          <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <div>
-                              <span className="font-bold text-slate-900">Correo electronico:</span>{' '}
-                              <span className="text-slate-800 font-mono">{selectedReport.peritoEmail}</span>
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900">Teléfono:</span>{' '}
-                              <span className="font-mono font-bold text-slate-800">{selectedReport.peritoTelefono}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-black text-slate-900 mr-1.5">FOLIO:</span>
-                              <span className="font-black text-rose-600 text-sm sm:text-base font-mono">
-                                {selectedReport.folio}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
-        )
+      {/* Signature Pad Modal */}
+      {selectedReport && (
+        <SignatureModal
+          isOpen={isSignatureModalOpen}
+          onClose={() => setIsSignatureModalOpen(false)}
+          onSaveSignature={handleApplySignature}
+          peritoNombre={selectedReport.peritoNombre}
+          cedula={selectedReport.peritoCedula}
+        />
       )}
 
     </div>

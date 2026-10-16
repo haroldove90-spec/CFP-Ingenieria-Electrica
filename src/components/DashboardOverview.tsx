@@ -76,7 +76,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <FileCheck2 className="w-4 h-4 text-emerald-400" />
-              <span>Ver Dictámenes ({totalReports})</span>
+              <span>Historial de Dictámenes ({totalReports})</span>
             </button>
 
             <button
