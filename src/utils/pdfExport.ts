@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 
 export async function exportDocumentToPdf(
   elementId: string, 
@@ -13,42 +13,27 @@ export async function exportDocumentToPdf(
   }
 
   try {
-    // Exact background color: authentic light security paper green or white
-    const targetBgColor = isGreenSecurityPaper ? '#d8f3dc' : '#ffffff';
+    const targetBgColor = isGreenSecurityPaper ? '#cbf3d2' : '#ffffff';
 
-    // Temporary force element styling for crisp capture
-    const originalTransform = element.style.transform;
-    element.style.transform = 'none';
-
-    const canvas = await html2canvas(element, {
-      scale: 2.5, // Crisp 300 DPI print quality
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
+    // Use html-to-image which natively supports Tailwind v4 "oklch" colors and modern CSS
+    const imgData = await toJpeg(element, {
+      quality: 0.98,
+      pixelRatio: 2.2, // Crisp 300 DPI print quality
       backgroundColor: targetBgColor,
-      imageTimeout: 10000,
-      ignoreElements: (el) => el.classList.contains('no-print'),
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.getElementById(elementId);
-        if (clonedElement) {
-          clonedElement.style.transform = 'none';
-          clonedElement.style.margin = '0 auto';
-          clonedElement.style.boxShadow = 'none';
-          clonedElement.style.border = 'none';
-          if (isGreenSecurityPaper) {
-            clonedElement.style.backgroundColor = '#d8f3dc';
-          } else {
-            clonedElement.style.backgroundColor = '#ffffff';
-          }
+      style: {
+        transform: 'none',
+        margin: '0',
+      },
+      filter: (node) => {
+        // Exclude elements marked as no-print
+        if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+          return false;
         }
+        return true;
       },
     });
 
-    element.style.transform = originalTransform;
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-    // Letter size: 215.9 mm x 279.4 mm (Carta)
+    // Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -59,36 +44,40 @@ export async function exportDocumentToPdf(
     const pdfWidth = 215.9;
     const pdfHeight = 279.4;
 
-    // Small clean margins (5 mm on all sides)
-    const margin = 5;
+    const margin = 5; // 5 mm margins
     const availableWidth = pdfWidth - margin * 2; // 205.9 mm
     const availableHeight = pdfHeight - margin * 2; // 269.4 mm
 
-    // Fit entirely on 1 Carta page
-    const canvasAspect = canvas.height / canvas.width;
+    // Load image to determine exact dimensions
+    const img = new Image();
+    img.src = imgData;
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+
+    const imgAspect = img.height / img.width;
     let finalWidth = availableWidth;
-    let finalHeight = finalWidth * canvasAspect;
+    let finalHeight = finalWidth * imgAspect;
 
     if (finalHeight > availableHeight) {
       finalHeight = availableHeight;
-      finalWidth = finalHeight / canvasAspect;
+      finalWidth = finalHeight / imgAspect;
     }
 
     const posX = margin + (availableWidth - finalWidth) / 2;
     const posY = margin + (availableHeight - finalHeight) / 2;
 
-    // Draw background color on the entire letter page if green security paper
+    // Paint the entire Letter page in authentic security green if green paper is selected
     if (isGreenSecurityPaper) {
-      pdf.setFillColor(216, 243, 220); // #d8f3dc
+      pdf.setFillColor(203, 243, 210); // #cbf3d2
       pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
     }
 
+    // Add high-resolution document image
     pdf.addImage(imgData, 'JPEG', posX, posY, finalWidth, finalHeight, undefined, 'SLOW');
 
-    // Safe sanitized filename
+    // Trigger direct browser download
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-
-    // Trigger direct browser file download
     const blob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -104,8 +93,8 @@ export async function exportDocumentToPdf(
 
     return true;
   } catch (error) {
-    console.error('Error generating and downloading PDF:', error);
-    alert('Ocurrió un error al generar el archivo PDF. Verifique los permisos del navegador para descargas.');
+    console.error('Error in exportDocumentToPdf:', error);
+    alert('Ocurrió un inconveniente al exportar el PDF. Por favor reintente.');
     return false;
   }
 }
