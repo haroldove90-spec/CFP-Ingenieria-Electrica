@@ -65,18 +65,23 @@ export async function exportDocumentToPdf(
 
     // 2. Set element background to transparent for the capture so all text, tables,
     // borders, and signatures form a crisp transparent overlay over the background image
-    element.style.backgroundImage = 'none';
-    element.style.backgroundColor = 'transparent';
-    element.style.boxShadow = 'none';
-    element.style.border = 'none';
+    element.style.setProperty('transition', 'none', 'important');
+    element.style.setProperty('background-image', 'none', 'important');
+    element.style.setProperty('background-color', 'transparent', 'important');
+    element.style.setProperty('box-shadow', 'none', 'important');
+    element.style.setProperty('border', 'none', 'important');
 
     // 3. Capture high-resolution transparent PNG with 300 DPI quality
     const contentPng = await toPng(element, {
       pixelRatio: 2.2,
-      backgroundColor: undefined,
+      backgroundColor: 'transparent',
       style: {
         transform: 'none',
         margin: '0',
+        backgroundColor: 'transparent',
+        backgroundImage: 'none',
+        boxShadow: 'none',
+        border: 'none',
       },
       filter: (node) => {
         // Exclude UI controls marked as no-print
@@ -92,6 +97,7 @@ export async function exportDocumentToPdf(
     element.style.backgroundColor = prevBgColor;
     element.style.boxShadow = prevBoxShadow;
     element.style.border = prevBorder;
+    element.style.transition = '';
 
     // 4. Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
     const pdf = new jsPDF({
@@ -109,10 +115,6 @@ export async function exportDocumentToPdf(
       if (securityBgDataUrl) {
         // Official security paper image fills the entire Carta sheet seamlessly
         pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-      } else {
-        // Fallback fill if offline/failed
-        pdf.setFillColor(203, 243, 210); // #cbf3d2
-        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
       }
     } else {
       // Clean white paper

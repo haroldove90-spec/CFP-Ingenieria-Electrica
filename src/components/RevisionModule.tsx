@@ -680,9 +680,9 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
               {/* THE OFFICIAL FORMAT DOCUMENT CONTAINER */}
               <div
                 id="official-peritaje-document"
-                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 transition-colors duration-200 relative print:shadow-none print:border-none print:m-0 print:p-2 text-slate-900`}
+                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 relative print:shadow-none print:border-none print:m-0 print:p-2 text-slate-900`}
                 style={{
-                  backgroundColor: securityBgStyle === 'guilloche' ? '#cbf3d2' : '#ffffff',
+                  backgroundColor: securityBgStyle === 'guilloche' ? 'transparent' : '#ffffff',
                   backgroundImage: securityBgStyle === 'guilloche'
                     ? "url('/seguridad.png')"
                     : 'none',
