@@ -26,6 +26,7 @@ import { RevisionReport, UserRole } from '../types';
 import { generateQrMatrixSvg } from '../utils/barcode';
 import { exportDocumentToPdf } from '../utils/pdfExport';
 import { SignatureModal } from './SignatureModal';
+import { CfpLogo } from './CfpLogo';
 
 interface RevisionModuleProps {
   reports: RevisionReport[];
@@ -256,7 +257,8 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
 
     // Allow DOM to settle
     setTimeout(async () => {
-      const success = await exportDocumentToPdf('official-peritaje-document', filename);
+      const isGreen = securityBgStyle === 'guilloche';
+      const success = await exportDocumentToPdf('official-peritaje-document', filename, isGreen);
       setIsExportingPdf(false);
 
       if (success) {
@@ -678,34 +680,29 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
               {/* THE OFFICIAL FORMAT DOCUMENT CONTAINER */}
               <div
                 id="official-peritaje-document"
-                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 transition-colors duration-200 relative print:shadow-none print:border-none print:m-0 print:p-2 ${
-                  securityBgStyle === 'guilloche'
-                    ? 'bg-[#ebf8ee] text-slate-900'
-                    : 'bg-white text-slate-900'
-                }`}
-                style={
-                  securityBgStyle === 'guilloche'
-                    ? {
-                        backgroundImage: `repeating-linear-gradient(
-                          45deg,
-                          rgba(16, 185, 129, 0.04) 0px,
-                          rgba(16, 185, 129, 0.04) 3px,
-                          transparent 3px,
-                          transparent 8px
-                        ), repeating-linear-gradient(
-                          -45deg,
-                          rgba(5, 150, 105, 0.03) 0px,
-                          rgba(5, 150, 105, 0.03) 3px,
-                          transparent 3px,
-                          transparent 8px
-                        )`,
-                      }
-                    : {}
-                }
+                className={`w-full max-w-4xl p-6 sm:p-10 shadow-2xl rounded-sm border border-slate-300 transition-colors duration-200 relative print:shadow-none print:border-none print:m-0 print:p-2 text-slate-900`}
+                style={{
+                  backgroundColor: securityBgStyle === 'guilloche' ? '#cbf3d2' : '#ffffff',
+                  backgroundImage: securityBgStyle === 'guilloche'
+                    ? `repeating-linear-gradient(
+                        45deg,
+                        rgba(5, 150, 105, 0.08) 0px,
+                        rgba(5, 150, 105, 0.08) 3px,
+                        transparent 3px,
+                        transparent 8px
+                      ), repeating-linear-gradient(
+                        -45deg,
+                        rgba(16, 185, 129, 0.06) 0px,
+                        rgba(16, 185, 129, 0.06) 3px,
+                        transparent 3px,
+                        transparent 8px
+                      )`
+                    : 'none',
+                }}
               >
                 {/* Subtle Watermark repeating SEGURIDAD (Only in security paper) */}
                 {securityBgStyle === 'guilloche' && (
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-10 flex flex-wrap gap-12 p-8 select-none">
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-15 flex flex-wrap gap-12 p-8 select-none">
                     {Array.from({ length: 48 }).map((_, i) => (
                       <span key={i} className="text-xs font-black tracking-widest text-emerald-900 rotate-[-20deg]">
                         SEGURIDAD
@@ -745,14 +742,10 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
                       </div>
                     </div>
 
-                    {/* Right: Official Crest Logo of COLEGIO FEDERAL PERITOS CFP */}
+                    {/* Right: Official Crest Logo of COLEGIO FEDERAL PERITOS CFP (Inline SVG to prevent canvas taint) */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
-                        <img
-                          src="/logo-cfp.svg"
-                          alt="Colegio Federal Peritos Logo"
-                          className="w-full h-full object-contain filter drop-shadow"
-                        />
+                        <CfpLogo size={72} />
                       </div>
                       <div className="flex flex-col text-left leading-tight font-serif">
                         <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-900 uppercase">

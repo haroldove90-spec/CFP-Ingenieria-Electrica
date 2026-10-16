@@ -1,7 +1,11 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export async function exportDocumentToPdf(elementId: string, filename: string): Promise<boolean> {
+export async function exportDocumentToPdf(
+  elementId: string, 
+  filename: string,
+  isGreenSecurityPaper = true
+): Promise<boolean> {
   const element = document.getElementById(elementId);
   if (!element) {
     console.error(`Element with id ${elementId} not found.`);
@@ -9,28 +13,42 @@ export async function exportDocumentToPdf(elementId: string, filename: string): 
   }
 
   try {
-    // Clone element or configure html2canvas options to avoid SVG tainted errors
+    // Exact background color: authentic light security paper green or white
+    const targetBgColor = isGreenSecurityPaper ? '#d8f3dc' : '#ffffff';
+
+    // Temporary force element styling for crisp capture
+    const originalTransform = element.style.transform;
+    element.style.transform = 'none';
+
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 2.5, // Crisp 300 DPI print quality
       useCORS: true,
       allowTaint: true,
       logging: false,
-      backgroundColor: element.style.backgroundColor || '#ffffff',
+      backgroundColor: targetBgColor,
+      imageTimeout: 10000,
       ignoreElements: (el) => el.classList.contains('no-print'),
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.getElementById(elementId);
         if (clonedElement) {
           clonedElement.style.transform = 'none';
-          clonedElement.style.margin = '0';
-          clonedElement.style.width = '800px';
-          clonedElement.style.maxWidth = '800px';
+          clonedElement.style.margin = '0 auto';
+          clonedElement.style.boxShadow = 'none';
+          clonedElement.style.border = 'none';
+          if (isGreenSecurityPaper) {
+            clonedElement.style.backgroundColor = '#d8f3dc';
+          } else {
+            clonedElement.style.backgroundColor = '#ffffff';
+          }
         }
       },
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    element.style.transform = originalTransform;
 
-    // Letter size: 215.9 mm x 279.4 mm
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+    // Letter size: 215.9 mm x 279.4 mm (Carta)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -38,34 +56,56 @@ export async function exportDocumentToPdf(elementId: string, filename: string): 
       compress: true,
     });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const pdfWidth = 215.9;
+    const pdfHeight = 279.4;
 
+    // Small clean margins (5 mm on all sides)
     const margin = 5;
-    const availableWidth = pdfWidth - margin * 2;
-    const availableHeight = pdfHeight - margin * 2;
+    const availableWidth = pdfWidth - margin * 2; // 205.9 mm
+    const availableHeight = pdfHeight - margin * 2; // 269.4 mm
 
-    const imgWidth = availableWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Fit entirely on 1 Carta page
+    const canvasAspect = canvas.height / canvas.width;
+    let finalWidth = availableWidth;
+    let finalHeight = finalWidth * canvasAspect;
 
-    let finalWidth = imgWidth;
-    let finalHeight = imgHeight;
-
-    if (imgHeight > availableHeight) {
+    if (finalHeight > availableHeight) {
       finalHeight = availableHeight;
-      finalWidth = (canvas.width * finalHeight) / canvas.height;
+      finalWidth = finalHeight / canvasAspect;
     }
 
     const posX = margin + (availableWidth - finalWidth) / 2;
-    const posY = margin;
+    const posY = margin + (availableHeight - finalHeight) / 2;
 
-    pdf.addImage(imgData, 'JPEG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
-    pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+    // Draw background color on the entire letter page if green security paper
+    if (isGreenSecurityPaper) {
+      pdf.setFillColor(216, 243, 220); // #d8f3dc
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+    }
+
+    pdf.addImage(imgData, 'JPEG', posX, posY, finalWidth, finalHeight, undefined, 'SLOW');
+
+    // Safe sanitized filename
+    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+
+    // Trigger direct browser file download
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = cleanFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 4000);
+
     return true;
   } catch (error) {
-    console.warn('html2canvas direct export failed, triggering printable PDF window:', error);
-    // Fallback: Open clean print dialog formatted specifically for 1-page PDF
-    window.print();
-    return true;
+    console.error('Error generating and downloading PDF:', error);
+    alert('Ocurrió un error al generar el archivo PDF. Verifique los permisos del navegador para descargas.');
+    return false;
   }
 }
