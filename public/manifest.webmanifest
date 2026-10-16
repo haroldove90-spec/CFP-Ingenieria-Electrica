@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Ingeniería Eléctrica CFP",
+  "short_name": "CFP Eléctrica",
+  "description": "Sistema de gestión y dictámenes periciales en materia de seguridad eléctrica (NOM-001-SEDE-2012).",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b192c",
+  "theme_color": "#0b192c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-cfp.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-cfp.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

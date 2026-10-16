@@ -1,0 +1,6 @@
+{
+  "name": "Ingeniería Eléctrica CFP",
+  "description": "Sistema integral de dictámenes periciales, inspección y revisión de instalaciones eléctricas en materia de seguridad según la NOM-001-SEDE-2012.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
