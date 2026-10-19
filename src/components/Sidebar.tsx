@@ -21,6 +21,7 @@ export type ActiveTab =
   | 'revisiones' 
   | 'solicitud_servicios' 
   | 'condiciones_operativas' 
+  | 'evaluacion_seguridad'
   | 'verificador' 
   | 'configuracion';
 
@@ -34,6 +35,7 @@ interface SidebarProps {
   reportsCount: number;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
+  safetyEvaluationsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   reportsCount,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
+  safetyEvaluationsCount = 0,
 }) => {
   const menuItems = [
     {
@@ -78,6 +81,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Revisión Instalaciones Eléctricas',
       icon: Wrench,
       badge: 'Pág. 3 y 4',
+    },
+    {
+      id: 'evaluacion_seguridad' as ActiveTab,
+      label: 'Evaluación de Seguridad',
+      icon: ShieldCheck,
+      badge: 'Pág. 5-8',
     },
     {
       id: 'verificador' as ActiveTab,

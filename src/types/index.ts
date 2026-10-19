@@ -176,3 +176,115 @@ export interface OperatingConditionsReport {
   esMuestra?: boolean;
 }
 
+export interface SafetyEvaluationReport {
+  id: string;
+  folio: string; // e.g. "EVAL-055"
+  claveExpediente: string; // e.g. "CFP0125/FEEMS/IOA/0055/2026"
+  fechaEvaluacion: string; // e.g. "19-oct-26"
+
+  // ==========================================
+  // PÁGINA 5: DATOS GENERALES, SUMINISTRO Y SUBESTACIÓN
+  // ==========================================
+  // Centro de Trabajo / Instalación
+  razonSocial: string;
+  nombreComercial: string;
+  rfc: string;
+  giro: string;
+  calleNumero: string;
+  colonia: string;
+  municipio: string;
+  ciudadEstado: string;
+  codigoPostal: string;
+  telefono: string;
+  representanteLegal: string;
+
+  // Suministro de Energía Eléctrica
+  companiaSuministradora: string; // e.g. "Comisión Federal de Electricidad (CFE SSB)"
+  noServicioRpu: string; // e.g. "892140502194"
+  tarifaSuministro: string; // e.g. "GDMTO (Gran Demanda Media Tensión Ordinaria)"
+  tensionSuministro: string; // e.g. "13,200 V / 220-127 V"
+  frecuenciaHz: number; // 60
+  fasesHilos: string; // e.g. "3 Fases - 4 Hilos"
+
+  // Subestación Eléctrica y Transformador de Potencia
+  tipoSubestacion: 'Pedestal' | 'Poste / Aérea' | 'Subterránea' | 'Compacta / Encapsulada' | 'No Aplica (Solo BT)';
+  capacidadTransformadorKva: number; // e.g. 150
+  marcaNumeroSerie: string; // e.g. "PROLEC GE / SERIE: 219803"
+  tipoEnfriamiento: 'OA (Enfriamiento Natural)' | 'ONAN' | 'Tipo Seco';
+  nivelEstadoAceite: 'Normal / Aceptable' | 'Bajo nivel' | 'Deteriorado' | 'No Aplica (Seco)';
+  proteccionFisicaCercaCandado: 'Conforme' | 'No Conforme' | 'Requiere Mantenimiento';
+
+  // Sistema de Puesta a Tierra y Pararrayos
+  electrodoTierraConexion: 'Conforme' | 'Observaciones Menores' | 'Crítico';
+  resistenciaTierraMedidaOhms: number; // e.g. 7.2
+  sistemaPararrayosBajantes: 'Instalado y Conforme' | 'No Instalado / No Requerido' | 'Requiere Mantenimiento';
+
+  // ==========================================
+  // PÁGINA 6: TABLEROS, CIRCUITOS DERIVADOS, PROTECCIONES Y CANALIZACIONES
+  // ==========================================
+  // Tableros Principales y de Distribución
+  gabineteTipoNema: string; // e.g. "NEMA 1 Interior" o "NEMA 3R Intemperie"
+  directorioCircuitosIdentificado: '100% Identificado y Legible' | 'Parcialmente Identificado' | 'Sin Identificación';
+  cubiertaFrontalProteccionContacto: 'Completa y Ajustada' | 'Tapas Sueltas / Faltantes' | 'Inexistente';
+  espacioReservaEspaciosVacios: 'Con tapas ciegas' | 'Aperturas expuestas sin tapa' | 'Sin espacio';
+
+  // Dispositivos de Sobrecorriente e Interruptores
+  interruptorPrincipalCapacidadA: number; // e.g. 400
+  coordinacionProtecciones: 'Adecuada y Selectiva' | 'Sobrecalibrada' | 'Riesgo de Disparo en Cascada';
+  proteccionFallaTierraGfci: 'Instalada en Zonas Húmedas' | 'Parcial' | 'No Instalada / Requerida';
+  estadoInterruptoresTermomagneticos: 'Buen estado operativo' | 'Signos de calentamiento' | 'Dañados';
+
+  // Conductores y Canalizaciones
+  tipoConductorAislamiento: string; // e.g. "THW-LS 600V 75°C / 90°C Antiflama"
+  codigoColoresNormativo: 'Conforme NOM-001' | 'Parcialmente Identificado' | 'No Cumple Código';
+  canalizacionesTuberiasCharolas: 'Tubería Conduit PG/PD Hermética' | 'Charola Tipo Escalera' | 'Conductores Expuestos';
+  factorLlenadoCanalizaciones: 'Conforme (<40%)' | 'Saturado (>40%)' | 'Crítico';
+
+  // ==========================================
+  // PÁGINA 7: CONDICIONES DE SEGURIDAD LABORAL (NOM-029-STPS / NOM-026-STPS)
+  // ==========================================
+  // Espacios de Trabajo y Accesibilidad (Art. 110-26)
+  espacioTrabajoTableros: 'Conforme (>90cm despejado)' | 'Parcialmente Obstruido' | 'Obstrucción Crítica';
+  puertasAccesoEscape: 'Libres y con apertura hacia afuera' | 'Bloqueadas' | 'Aceptable';
+
+  // Señalización de Seguridad (NOM-026-STPS)
+  senalesAdvertenciaRiesgoElectrico: 'Completas y Visibles' | 'Deterioradas / Faltantes' | 'Inexistentes';
+  diagramaUnifilarActualizado: 'Disponible y Visible en Tablero' | 'En Archivo' | 'No Disponible';
+
+  // Medidas Preventivas y Tapetes Dieléctricos
+  tapetesDielectricosAislantes: 'Colocados en tableros principales' | 'Deteriorados' | 'No Colocados';
+  iluminacionNormalYEmergencia: 'Luminarias normales y de emergencia operativas' | 'Sin luz de emergencia' | 'Deficiente';
+
+  // Prevención de Incendios y EPP
+  extintorTipoCo2PqsCercano: 'Extintor CO2 / PQS vigente y despejado' | 'Vencido o sin presión' | 'No Disponible en el área';
+  disponibilidadEppDielectrico: 'Completo (Guantes, careta arc-flash, calzado)' | 'Parcial' | 'Inexistente';
+
+  // ==========================================
+  // PÁGINA 8: PRUEBAS, EVIDENCIAS, PLAN DE ACCIÓN Y CALIFICACIÓN GLOBAL
+  // ==========================================
+  // Pruebas y Mediciones Eléctricas
+  medicionTensionFasesV: string; // e.g. "F1-F2: 220V, F2-F3: 221V, F3-F1: 219V, F-N: 127V"
+  pruebaAislamientoMegger: 'Conforme (>100 MΩ)' | 'Aceptable (>50 MΩ)' | 'Falla de Aislamiento';
+  termografiaInfrarroja: 'Sin puntos calientes' | 'Puntos calientes leves detectados' | 'Punto caliente crítico';
+
+  // Evidencias Fotográficas
+  evidencias: EvidenceItem[];
+
+  // No Conformidades y Plan de Corrección
+  noConformidadesDetectadas: string;
+  medidasCorrectivasInmediatas: string;
+  plazoSubsanacionDias: number; // e.g. 15
+
+  // Veredicto Global
+  calificacionSeguridad: 'Instalación Eléctrica Segura (Aprobada)' | 'Instalación Condicionada a Correcciones' | 'Instalación de Alto Riesgo Inminente';
+
+  // Acreditación Pericial del CFP
+  peritoNombre: string;
+  peritoAfiliacion: string;
+  peritoCedula: string;
+  peritoTelefono: string;
+  peritoEmail: string;
+  firmaDigital?: string;
+  esMuestra?: boolean;
+}
+

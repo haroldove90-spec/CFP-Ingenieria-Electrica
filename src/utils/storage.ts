@@ -1,8 +1,9 @@
-import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport } from '../types';
+import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport } from '../types';
 
 const STORAGE_KEY_REPORTS = 'cfp_revision_reports';
 const STORAGE_KEY_SERVICE_REQUESTS = 'cfp_service_requests';
 const STORAGE_KEY_OPERATING_CONDITIONS = 'cfp_operating_conditions';
+const STORAGE_KEY_SAFETY_EVALUATIONS = 'cfp_safety_evaluations';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -178,17 +179,36 @@ export function clearSampleData(): { removedCount: number; remainingCount: numbe
   const nonDemo = current.filter(r => !r.esMuestra);
   const removedCount = current.length - nonDemo.length;
   localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(nonDemo));
+
+  // Service requests
+  const srv = getServiceRequests().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(srv));
+
+  // Operating conditions
+  const op = getOperatingConditionsReports().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(op));
+
+  // Safety evaluations
+  const safe = getSafetyEvaluations().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(safe));
+
   return { removedCount, remainingCount: nonDemo.length };
 }
 
 export function wipeAllReports(): void {
   setDemoDataHidden(true);
   localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify([]));
 }
 
 export function restoreSampleData(): RevisionReport[] {
   setDemoDataHidden(false);
   localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(SAMPLE_REPORTS));
+  localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(SAMPLE_SERVICE_REQUESTS));
+  localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(SAMPLE_OPERATING_CONDITIONS));
+  localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(SAMPLE_SAFETY_EVALUATIONS));
   return SAMPLE_REPORTS;
 }
 
@@ -468,6 +488,160 @@ export function deleteOperatingConditionsReport(id: string): OperatingConditions
   const current = getOperatingConditionsReports();
   const updated = current.filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(updated));
+  return updated;
+}
+
+// ==========================================
+// MÓDULO: FORMATO PARA EVALUACIÓN DE INSTALACIONES ELÉCTRICAS EN MATERIA DE SEGURIDAD
+// Páginas 5, 6, 7 y 8
+// ==========================================
+
+export const SAMPLE_SAFETY_EVALUATIONS: SafetyEvaluationReport[] = [
+  {
+    id: 'eval-055',
+    folio: '055',
+    claveExpediente: 'CFP0125/FEEMS/IOA/0055/2026',
+    fechaEvaluacion: '19-oct-26',
+
+    // Página 5
+    razonSocial: 'CORPORATIVO INDUSTRIAL AGROPECUARIO DEL BAJÍO S.A. DE C.V.',
+    nombreComercial: 'AGROEXPORTADORA DEL VALLE — PLANTA MORELIA',
+    rfc: 'AVM190312KP8',
+    giro: 'PROCESO, EMPAQUE Y REFRIGERACIÓN INDUSTRIAL DE ALIMENTOS',
+    calleNumero: 'CARRETERA MORELIA-PÁTZCUARO KM 14.5',
+    colonia: 'PARQUE INDUSTRIAL MORELIA',
+    municipio: 'MORELIA',
+    ciudadEstado: 'MORELIA, MICHOACÁN',
+    codigoPostal: '58340',
+    telefono: '4432198000',
+    representanteLegal: 'ING. MARCELO DELGADO CÁRDENAS',
+
+    companiaSuministradora: 'Comisión Federal de Electricidad (CFE Suministrador de Servicios Básicos)',
+    noServicioRpu: '892140502194',
+    tarifaSuministro: 'GDMTO (Gran Demanda Media Tensión Ordinaria)',
+    tensionSuministro: '13,200 V / 220-127 V',
+    frecuenciaHz: 60,
+    fasesHilos: '3 Fases - 4 Hilos',
+
+    tipoSubestacion: 'Pedestal',
+    capacidadTransformadorKva: 225,
+    marcaNumeroSerie: 'PROLEC GE / SERIE: 219803-TR',
+    tipoEnfriamiento: 'OA (Enfriamiento Natural)',
+    nivelEstadoAceite: 'Normal / Aceptable',
+    proteccionFisicaCercaCandado: 'Conforme',
+
+    electrodoTierraConexion: 'Conforme',
+    resistenciaTierraMedidaOhms: 6.4,
+    sistemaPararrayosBajantes: 'Instalado y Conforme',
+
+    // Página 6
+    gabineteTipoNema: 'NEMA 1 Interior / NEMA 3R Intemperie',
+    directorioCircuitosIdentificado: '100% Identificado y Legible',
+    cubiertaFrontalProteccionContacto: 'Completa y Ajustada',
+    espacioReservaEspaciosVacios: 'Con tapas ciegas',
+
+    interruptorPrincipalCapacidadA: 400,
+    coordinacionProtecciones: 'Adecuada y Selectiva',
+    proteccionFallaTierraGfci: 'Instalada en Zonas Húmedas',
+    estadoInterruptoresTermomagneticos: 'Buen estado operativo',
+
+    tipoConductorAislamiento: 'THW-LS 600V 75°C / 90°C Antiflama',
+    codigoColoresNormativo: 'Conforme NOM-001',
+    canalizacionesTuberiasCharolas: 'Tubería Conduit PG/PD Hermética',
+    factorLlenadoCanalizaciones: 'Conforme (<40%)',
+
+    // Página 7
+    espacioTrabajoTableros: 'Conforme (>90cm despejado)',
+    puertasAccesoEscape: 'Libres y con apertura hacia afuera',
+
+    senalesAdvertenciaRiesgoElectrico: 'Completas y Visibles',
+    diagramaUnifilarActualizado: 'Disponible y Visible en Tablero',
+
+    tapetesDielectricosAislantes: 'Colocados en tableros principales',
+    iluminacionNormalYEmergencia: 'Luminarias normales y de emergencia operativas',
+
+    extintorTipoCo2PqsCercano: 'Extintor CO2 / PQS vigente y despejado',
+    disponibilidadEppDielectrico: 'Completo (Guantes, careta arc-flash, calzado)',
+
+    // Página 8
+    medicionTensionFasesV: 'F1-F2: 220V, F2-F3: 219V, F3-F1: 221V | F-N: 127V / 126V / 127V',
+    pruebaAislamientoMegger: 'Conforme (>100 MΩ)',
+    termografiaInfrarroja: 'Sin puntos calientes',
+
+    evidencias: [
+      {
+        id: 'evi-safe-1',
+        dataUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
+        nombre: 'Subestación Tipo Pedestal',
+        descripcion: 'Transformador 225 kVA con candado de seguridad y puesta a tierra perimetral',
+        fecha: '19-oct-26'
+      },
+      {
+        id: 'evi-safe-2',
+        dataUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+        nombre: 'Tablero General de Distribución',
+        descripcion: 'Directorio de circuitos legible, tapas frontales completas y tapete dieléctrico',
+        fecha: '19-oct-26'
+      }
+    ],
+
+    noConformidadesDetectadas: 'Se detectó ausencia de una tapa ciega en reserva inferior del submódulo auxiliar de iluminación.',
+    medidasCorrectivasInmediatas: 'Colocar tapa ciega metálica tipo NEMA en espacio desocupado del tablero auxiliar antes de 15 días.',
+    plazoSubsanacionDias: 15,
+
+    calificacionSeguridad: 'Instalación Eléctrica Segura (Aprobada)',
+
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoCedula: '15240154',
+    peritoTelefono: '4431748638',
+    peritoEmail: 'israel9b@hotmail.com',
+    esMuestra: true,
+  }
+];
+
+export function getSafetyEvaluations(): SafetyEvaluationReport[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_SAFETY_EVALUATIONS);
+  const hideDemo = isDemoDataHidden();
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(SAMPLE_SAFETY_EVALUATIONS));
+    return SAMPLE_SAFETY_EVALUATIONS;
+  }
+
+  try {
+    const list: SafetyEvaluationReport[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_SAFETY_EVALUATIONS;
+  }
+}
+
+export function saveSafetyEvaluation(report: SafetyEvaluationReport): SafetyEvaluationReport[] {
+  const current = getSafetyEvaluations();
+  const existsIndex = current.findIndex(r => r.id === report.id || r.folio === report.folio);
+  let updated: SafetyEvaluationReport[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = { ...report, esMuestra: false };
+  } else {
+    updated = [report, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteSafetyEvaluation(id: string): SafetyEvaluationReport[] {
+  const current = getSafetyEvaluations();
+  const updated = current.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(updated));
   return updated;
 }
 

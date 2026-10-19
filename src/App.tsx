@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, RevisionReport, ServiceRequest, OperatingConditionsReport } from './types';
+import { UserRole, RevisionReport, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport } from './types';
 import { 
   getActiveRole, 
   setActiveRole as persistActiveRole, 
@@ -11,7 +11,10 @@ import {
   deleteServiceRequest,
   getOperatingConditionsReports,
   saveOperatingConditionsReport,
-  deleteOperatingConditionsReport
+  deleteOperatingConditionsReport,
+  getSafetyEvaluations,
+  saveSafetyEvaluation,
+  deleteSafetyEvaluation
 } from './utils/storage';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { RoleSelector } from './components/RoleSelector';
@@ -22,6 +25,7 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { RevisionModule } from './components/RevisionModule';
 import { ServiceRequestModule } from './components/ServiceRequestModule';
 import { OperatingConditionsModule } from './components/OperatingConditionsModule';
+import { SafetyEvaluationModule } from './components/SafetyEvaluationModule';
 import { BarcodeVerifier } from './components/BarcodeVerifier';
 import { SupabaseConfigView } from './components/SupabaseConfigView';
 import { PWAInstallModal } from './components/PWAInstallModal';
@@ -41,6 +45,7 @@ export default function App() {
   const [reports, setReports] = useState<RevisionReport[]>(() => getRevisionReports());
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(() => getServiceRequests());
   const [operatingConditions, setOperatingConditions] = useState<OperatingConditionsReport[]>(() => getOperatingConditionsReports());
+  const [safetyEvaluations, setSafetyEvaluations] = useState<SafetyEvaluationReport[]>(() => getSafetyEvaluations());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -53,6 +58,7 @@ export default function App() {
     setReports(getRevisionReports());
     setServiceRequests(getServiceRequests());
     setOperatingConditions(getOperatingConditionsReports());
+    setSafetyEvaluations(getSafetyEvaluations());
   };
 
   const handleSelectRole = (role: UserRole) => {
@@ -99,6 +105,17 @@ export default function App() {
     setOperatingConditions(updated);
   };
 
+  // Safety Evaluations CRUD
+  const handleSaveSafetyEvaluation = (rep: SafetyEvaluationReport) => {
+    const updated = saveSafetyEvaluation(rep);
+    setSafetyEvaluations(updated);
+  };
+
+  const handleDeleteSafetyEvaluation = (id: string) => {
+    const updated = deleteSafetyEvaluation(id);
+    setSafetyEvaluations(updated);
+  };
+
   // If no role is selected, show exclusively the RoleSelector
   if (!activeRole) {
     return <RoleSelector onSelectRole={handleSelectRole} />;
@@ -132,6 +149,7 @@ export default function App() {
           reportsCount={reports.length}
           serviceRequestsCount={serviceRequests.length}
           operatingConditionsCount={operatingConditions.length}
+          safetyEvaluationsCount={safetyEvaluations.length}
         />
 
         {/* Content View Area */}
@@ -144,6 +162,7 @@ export default function App() {
               onOpenDataModal={() => setIsDataModalOpen(true)}
               serviceRequestsCount={serviceRequests.length}
               operatingConditionsCount={operatingConditions.length}
+              safetyEvaluationsCount={safetyEvaluations.length}
             />
           )}
 
@@ -189,6 +208,15 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'evaluacion_seguridad' && (
+            <SafetyEvaluationModule
+              reports={safetyEvaluations}
+              activeRole={activeRole}
+              onSaveReport={handleSaveSafetyEvaluation}
+              onDeleteReport={handleDeleteSafetyEvaluation}
+            />
+          )}
+
           {currentTab === 'verificador' && (
             <BarcodeVerifier
               reports={reports}
@@ -214,6 +242,7 @@ export default function App() {
         reportsCount={reports.length}
         serviceRequestsCount={serviceRequests.length}
         operatingConditionsCount={operatingConditions.length}
+        safetyEvaluationsCount={safetyEvaluations.length}
       />
 
       {/* PWA Installation Modal */}

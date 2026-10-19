@@ -24,6 +24,7 @@ interface DashboardOverviewProps {
   onOpenDataModal: () => void;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
+  safetyEvaluationsCount?: number;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -33,6 +34,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onOpenDataModal,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
+  safetyEvaluationsCount = 0,
 }) => {
   // Aggregate stats
   const totalReports = reports.length;
@@ -67,7 +69,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             Plataforma oficial de dictaminación, inspección y emisión de informes de seguridad en instalaciones eléctricas de Media y Baja Tensión conforme a la NOM-001-SEDE-2012.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => onNavigate('nuevo_dictamen')}
               className="px-4 py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
@@ -78,7 +80,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
             <button
               onClick={() => onNavigate('solicitud_servicios')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <ClipboardList className="w-4 h-4 text-amber-400" />
               <span>Solicitudes ({serviceRequestsCount})</span>
@@ -86,15 +88,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
             <button
               onClick={() => onNavigate('condiciones_operativas')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <Wrench className="w-4 h-4 text-cyan-400" />
-              <span>Revisión Instalaciones ({operatingConditionsCount})</span>
+              <span>Revisión ({operatingConditionsCount})</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('evaluacion_seguridad')}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-purple-400" />
+              <span>Eval. Seguridad ({safetyEvaluationsCount})</span>
             </button>
 
             <button
               onClick={() => onNavigate('revisiones')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <FileCheck2 className="w-4 h-4 text-emerald-400" />
               <span>Historial ({totalReports})</span>
