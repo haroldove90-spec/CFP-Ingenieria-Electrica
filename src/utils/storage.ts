@@ -1,9 +1,10 @@
-import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport } from '../types';
+import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport, ElectricalMeasurementsReport } from '../types';
 
 const STORAGE_KEY_REPORTS = 'cfp_revision_reports';
 const STORAGE_KEY_SERVICE_REQUESTS = 'cfp_service_requests';
 const STORAGE_KEY_OPERATING_CONDITIONS = 'cfp_operating_conditions';
 const STORAGE_KEY_SAFETY_EVALUATIONS = 'cfp_safety_evaluations';
+const STORAGE_KEY_ELECTRICAL_MEASUREMENTS = 'cfp_electrical_measurements';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -192,6 +193,10 @@ export function clearSampleData(): { removedCount: number; remainingCount: numbe
   const safe = getSafetyEvaluations().filter(r => !r.esMuestra);
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(safe));
 
+  // Electrical measurements (Página 9)
+  const elec = getElectricalMeasurements().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(elec));
+
   return { removedCount, remainingCount: nonDemo.length };
 }
 
@@ -201,6 +206,7 @@ export function wipeAllReports(): void {
   localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify([]));
 }
 
 export function restoreSampleData(): RevisionReport[] {
@@ -209,6 +215,7 @@ export function restoreSampleData(): RevisionReport[] {
   localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(SAMPLE_SERVICE_REQUESTS));
   localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(SAMPLE_OPERATING_CONDITIONS));
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(SAMPLE_SAFETY_EVALUATIONS));
+  localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(SAMPLE_ELECTRICAL_MEASUREMENTS));
   return SAMPLE_REPORTS;
 }
 
@@ -642,6 +649,155 @@ export function deleteSafetyEvaluation(id: string): SafetyEvaluationReport[] {
   const current = getSafetyEvaluations();
   const updated = current.filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(updated));
+  return updated;
+}
+
+// ==========================================
+// MÓDULO 4: MEDICIONES DE VARIABLES ELÉCTRICAS (PÁGINA 9)
+// ==========================================
+
+export const SAMPLE_ELECTRICAL_MEASUREMENTS: ElectricalMeasurementsReport[] = [
+  {
+    id: 'med-359',
+    folio: '359',
+    claveExpediente: 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026',
+    fechaMedicion: '02-oct-26',
+
+    // 1. Datos Generales
+    nombreRazonSocial: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+    nombreComercial: 'ABARROTES AZTECA SUC. TIJERAS',
+    rfc: 'AAT170629U46',
+    domicilioCompleto: 'JUAN DE BAEZA #600 COL. DIECIOCHO DE MAYO',
+    municipioEstado: 'MORELIA, MICHOACÁN',
+    codigoPostal: '58258',
+    telefono: '4433234075',
+    solicitante: 'VICTOR DANIEL RIOS RAMIREZ',
+    solicitanteTelefono: '4438573253',
+    giro: 'COMERCIO AL POR MENOR DE ABARROTES, ALIMENTOS, BEBIDAS, HIELO Y TABACO',
+
+    // 2. Equipo de Medición
+    instrumentoNombre: 'Analizador de Calidad de Energía y Multímetro / Pinza Amperimétrica',
+    instrumentoMarca: 'FLUKE',
+    instrumentoModelo: '435-II / 376 FC True RMS',
+    instrumentoSerie: 'FLK-4352-8921',
+    instrumentoCalibracion: 'Vigente al 15-Nov-2027 (Cert. EMA-EL-2024)',
+
+    // 3. Tensión Eléctrica (Volts)
+    tensionF1F2: 220.0,
+    tensionF2F3: 221.0,
+    tensionF3F1: 219.0,
+    tensionPromedioFF: 220.0,
+    tensionF1N: 127.5,
+    tensionF2N: 126.8,
+    tensionF3N: 127.2,
+    tensionPromedioFN: 127.2,
+    tensionNT: 1.2,
+    evaluacionTension: 'Conforme NOM-001-SEDE',
+
+    // 4. Corriente Eléctrica (Amperes)
+    corrienteF1: 68.5,
+    corrienteF2: 71.2,
+    corrienteF3: 65.8,
+    corrienteNeutro: 14.2,
+    desbalanceCorrientePorcentaje: 4.2,
+    evaluacionCorriente: 'Carga Balanceada (<10%)',
+
+    // 5. Potencia Eléctrica y Factor de Potencia (FP)
+    potenciaActivaKw: 27.26,
+    potenciaReactivaKvar: 13.62,
+    potenciaAparenteKva: 30.48,
+    factorPotenciaF1: 0.89,
+    factorPotenciaF2: 0.91,
+    factorPotenciaF3: 0.90,
+    factorPotenciaTotal: 0.90,
+    capacidadSubestacionKva: 75.0,
+    porcentajeUtilizacionCapacidad: 49.99,
+    evaluacionFactorPotencia: 'Aceptable CFE (>0.90)',
+
+    // 6. Polaridad y Contactos
+    polaridadContactos: 'Correcta (Fase en ranura corta, Neutro en ranura larga, Tierra conectada)',
+    pruebaGfciDisparo: 'Disparo Correcto (<25ms)',
+
+    // 7. Medición de Resistencia de Puesta a Tierra (SPAT)
+    spatMetodo: 'Caída de Potencial (Método Wenner 3 Puntas)',
+    spatPuntoMedicion: 'Pozo de Puesta a Tierra No. 1 - Subestación Tipo Pedestal',
+    spatResistenciaMedidaOhms: 4.8,
+    spatValorMaximoPermitidoOhms: 25.0,
+    spatDictamen: 'CUMPLE NORMATIVA (≤ 25 Ω)',
+
+    // 8. Descripción Técnica
+    descripcionTecnica: 'Se registraron los parámetros de tensión, corriente, potencia y resistencia de puesta a tierra en el tablero general de distribución en condiciones normales de operación. Las tensiones de fase se mantienen dentro del rango de tolerancia del ±5% normativo. El desbalance de corriente es de 4.2%, clasificándose como carga adecuadamente balanceada. La resistencia de tierra registrada de 4.8 Ω cumple ampliamente con el valor máximo permitido de 25 Ω establecido por la NOM-001-SEDE-2012 y NOM-022-STPS-2015.',
+
+    // 9. Evidencias Fotográficas
+    evidencias: [
+      {
+        id: 'evi-med-1',
+        dataUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
+        nombre: 'Lectura de Tensión y Desbalance en Pantalla',
+        descripcion: 'Comprobación de tensiones F-F 220V y F-N 127V en analizador Fluke',
+        fecha: '02-oct-26'
+      },
+      {
+        id: 'evi-med-2',
+        dataUrl: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=600&q=80',
+        nombre: 'Medición de Resistencia de Tierra en Pozo',
+        descripcion: 'Prueba de resistencia a tierra por método de caída de potencial obteniendo 4.8 Ω',
+        fecha: '02-oct-26'
+      }
+    ],
+
+    // 10. Acreditación Pericial del CFP
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoCedula: '15240154',
+    peritoTelefono: '4431748638',
+    peritoEmail: 'israel9b@hotmail.com',
+    esMuestra: true,
+  }
+];
+
+export function getElectricalMeasurements(): ElectricalMeasurementsReport[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS);
+  const hideDemo = isDemoDataHidden();
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(SAMPLE_ELECTRICAL_MEASUREMENTS));
+    return SAMPLE_ELECTRICAL_MEASUREMENTS;
+  }
+
+  try {
+    const list: ElectricalMeasurementsReport[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_ELECTRICAL_MEASUREMENTS;
+  }
+}
+
+export function saveElectricalMeasurement(report: ElectricalMeasurementsReport): ElectricalMeasurementsReport[] {
+  const current = getElectricalMeasurements();
+  const existsIndex = current.findIndex(r => r.id === report.id || r.folio === report.folio);
+  let updated: ElectricalMeasurementsReport[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = { ...report, esMuestra: false };
+  } else {
+    updated = [report, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteElectricalMeasurement(id: string): ElectricalMeasurementsReport[] {
+  const current = getElectricalMeasurements();
+  const updated = current.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(updated));
   return updated;
 }
 

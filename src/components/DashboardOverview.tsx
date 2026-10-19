@@ -25,6 +25,7 @@ interface DashboardOverviewProps {
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
+  electricalMeasurementsCount?: number;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -35,6 +36,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
+  electricalMeasurementsCount = 0,
 }) => {
   // Aggregate stats
   const totalReports = reports.length;
@@ -91,7 +93,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <Wrench className="w-4 h-4 text-cyan-400" />
-              <span>Revisión ({operatingConditionsCount})</span>
+              <span>Revisión Pág 3-4 ({operatingConditionsCount})</span>
             </button>
 
             <button
@@ -99,7 +101,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <ShieldCheck className="w-4 h-4 text-purple-400" />
-              <span>Eval. Seguridad ({safetyEvaluationsCount})</span>
+              <span>Seguridad Pág 5-8 ({safetyEvaluationsCount})</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('mediciones_electricas')}
+              className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold rounded-xl text-xs sm:text-sm border border-amber-500/40 transition cursor-pointer flex items-center gap-2"
+            >
+              <Activity className="w-4 h-4 text-amber-400" />
+              <span>Mediciones Pág 9 ({electricalMeasurementsCount})</span>
             </button>
 
             <button

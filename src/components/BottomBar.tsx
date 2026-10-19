@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileCheck2, PlusCircle, ClipboardList, Wrench, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, FileCheck2, PlusCircle, ClipboardList, Wrench, ShieldCheck, Activity } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface BottomBarProps {
@@ -9,6 +9,7 @@ interface BottomBarProps {
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
+  electricalMeasurementsCount?: number;
 }
 
 export const BottomBar: React.FC<BottomBarProps> = ({
@@ -18,18 +19,13 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
+  electricalMeasurementsCount = 0,
 }) => {
   const tabs = [
     {
       id: 'dashboard' as ActiveTab,
       label: 'Inicio',
       icon: LayoutDashboard,
-    },
-    {
-      id: 'nuevo_dictamen' as ActiveTab,
-      label: '+ Dictamen',
-      icon: PlusCircle,
-      isAction: true,
     },
     {
       id: 'solicitud_servicios' as ActiveTab,
@@ -39,15 +35,21 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     },
     {
       id: 'condiciones_operativas' as ActiveTab,
-      label: 'Rev. Eléc.',
+      label: 'Pág 3-4',
       icon: Wrench,
       badge: operatingConditionsCount,
     },
     {
       id: 'evaluacion_seguridad' as ActiveTab,
-      label: 'Seguridad',
+      label: 'Pág 5-8',
       icon: ShieldCheck,
       badge: safetyEvaluationsCount,
+    },
+    {
+      id: 'mediciones_electricas' as ActiveTab,
+      label: 'Pág 9',
+      icon: Activity,
+      badge: electricalMeasurementsCount,
     },
     {
       id: 'revisiones' as ActiveTab,
@@ -63,7 +65,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
-          const isAction = tab.isAction;
+          const isAction = 'isAction' in tab && Boolean((tab as any).isAction);
 
           return (
             <button

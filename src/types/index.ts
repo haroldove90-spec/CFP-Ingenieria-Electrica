@@ -288,3 +288,91 @@ export interface SafetyEvaluationReport {
   esMuestra?: boolean;
 }
 
+// ==========================================
+// PÁGINA 9: FORMATO TÉCNICO DE MEDICIONES DE VARIABLES ELÉCTRICAS
+// ==========================================
+
+export interface ElectricalMeasurementsReport {
+  id: string;
+  folio: string; // e.g. "359"
+  claveExpediente: string; // e.g. "CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026"
+  fechaMedicion: string; // e.g. "02-oct-26"
+
+  // 1. Datos Generales del Centro de Trabajo y Solicitante
+  nombreRazonSocial: string; // "ABARROTES AZTECA TIJERAS S.A DE C.V"
+  nombreComercial: string; // "ABARROTES AZTECA SUC. TIJERAS"
+  rfc: string; // "AAT170629U46"
+  domicilioCompleto: string; // "JUAN DE BAEZA #600 COL. DIECIOCHO DE MAYO"
+  municipioEstado: string; // "MORELIA, MICHOACÁN"
+  codigoPostal: string; // "58258"
+  telefono: string; // "4433234075"
+  solicitante: string; // "VICTOR DANIEL RIOS RAMIREZ"
+  solicitanteTelefono: string; // "4438573253"
+  giro: string; // "COMERCIO AL POR MENOR DE ABARROTES, ALIMENTOS, BEBIDAS, HIELO Y TABACO"
+
+  // 2. Instrumentación de Prueba y Equipo Utilizado
+  instrumentoNombre: string; // "Analizador de Redes y Calidad de la Energía / Multímetro Digital"
+  instrumentoMarca: string; // "FLUKE"
+  instrumentoModelo: string; // "435-II / 376 FC"
+  instrumentoSerie: string; // "FLK-9823412"
+  instrumentoCalibracion: string; // "Vigente al 15-Nov-2027"
+
+  // 3. Parámetros de Tensión Eléctrica (Volts)
+  tensionF1F2: number; // 220
+  tensionF2F3: number; // 221
+  tensionF3F1: number; // 219
+  tensionPromedioFF: number; // 220.0
+  tensionF1N: number; // 127.5
+  tensionF2N: number; // 126.8
+  tensionF3N: number; // 127.2
+  tensionPromedioFN: number; // 127.2
+  tensionNT: number; // 1.2
+  evaluacionTension: 'Conforme NOM-001-SEDE' | 'Desbalance Leve' | 'Fuera de Rango';
+
+  // 4. Parámetros de Corriente Eléctrica (Amperes)
+  corrienteF1: number; // 68.5
+  corrienteF2: number; // 71.2
+  corrienteF3: number; // 65.8
+  corrienteNeutro: number; // 14.2
+  desbalanceCorrientePorcentaje: number; // 4.2
+  evaluacionCorriente: 'Carga Balanceada (<10%)' | 'Desbalance Moderado' | 'Desbalance Crítico (>15%)';
+
+  // 5. Potencia Eléctrica y Factor de Potencia (FP / Coseno phi)
+  potenciaActivaKw: number; // 27.26
+  potenciaReactivaKvar: number; // 13.62
+  potenciaAparenteKva: number; // 30.48
+  factorPotenciaF1: number; // 0.89
+  factorPotenciaF2: number; // 0.91
+  factorPotenciaF3: number; // 0.90
+  factorPotenciaTotal: number; // 0.90
+  capacidadSubestacionKva: number; // 75
+  porcentajeUtilizacionCapacidad: number; // 49.99
+  evaluacionFactorPotencia: 'Cumple Código de Red (>0.95)' | 'Aceptable CFE (>0.90)' | 'Bajo Factor de Potencia (<0.90 Penalizable)';
+
+  // 6. Verificación de Polaridad y Contactos
+  polaridadContactos: 'Correcta (Fase en ranura corta, Neutro en ranura larga, Tierra conectada)' | 'Invertida (Fase y Neutro)' | 'Tierra Abierta / No Conectada';
+  pruebaGfciDisparo: 'Disparo Correcto (<25ms)' | 'No Aplica / No Instalado' | 'Falla de Disparo';
+
+  // 7. Medición de Resistencia de Puesta a Tierra (SPAT)
+  spatMetodo: 'Caída de Potencial (Método Wenner 3 Puntas)' | 'Pinza de Resistencia de Bucle (Stakeless)' | 'Telurómetro Digital 4 Puntas';
+  spatPuntoMedicion: string; // "Pozo de Tierra No. 1 - Subestación Principal"
+  spatResistenciaMedidaOhms: number; // 4.8
+  spatValorMaximoPermitidoOhms: number; // 25
+  spatDictamen: 'CUMPLE NORMATIVA (≤ 25 Ω)' | 'NO CUMPLE (Resistencia Excesiva > 25 Ω)';
+
+  // 8. Descripción Técnica y Análisis de Mediciones
+  descripcionTecnica: string;
+
+  // 9. Registro Fotográfico de Evidencias (Instrumentos y Mediciones en Sitio)
+  evidencias: EvidenceItem[];
+
+  // 10. Acreditación Pericial del CFP
+  peritoNombre: string;
+  peritoAfiliacion: string;
+  peritoCedula: string;
+  peritoTelefono: string;
+  peritoEmail: string;
+  firmaDigital?: string;
+  esMuestra?: boolean;
+}
+

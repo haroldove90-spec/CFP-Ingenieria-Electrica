@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, RevisionReport, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport } from './types';
+import { UserRole, RevisionReport, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport, ElectricalMeasurementsReport } from './types';
 import { 
   getActiveRole, 
   setActiveRole as persistActiveRole, 
@@ -14,7 +14,10 @@ import {
   deleteOperatingConditionsReport,
   getSafetyEvaluations,
   saveSafetyEvaluation,
-  deleteSafetyEvaluation
+  deleteSafetyEvaluation,
+  getElectricalMeasurements,
+  saveElectricalMeasurement,
+  deleteElectricalMeasurement
 } from './utils/storage';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { RoleSelector } from './components/RoleSelector';
@@ -26,6 +29,7 @@ import { RevisionModule } from './components/RevisionModule';
 import { ServiceRequestModule } from './components/ServiceRequestModule';
 import { OperatingConditionsModule } from './components/OperatingConditionsModule';
 import { SafetyEvaluationModule } from './components/SafetyEvaluationModule';
+import { ElectricalMeasurementsModule } from './components/ElectricalMeasurementsModule';
 import { BarcodeVerifier } from './components/BarcodeVerifier';
 import { SupabaseConfigView } from './components/SupabaseConfigView';
 import { PWAInstallModal } from './components/PWAInstallModal';
@@ -46,6 +50,7 @@ export default function App() {
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(() => getServiceRequests());
   const [operatingConditions, setOperatingConditions] = useState<OperatingConditionsReport[]>(() => getOperatingConditionsReports());
   const [safetyEvaluations, setSafetyEvaluations] = useState<SafetyEvaluationReport[]>(() => getSafetyEvaluations());
+  const [electricalMeasurements, setElectricalMeasurements] = useState<ElectricalMeasurementsReport[]>(() => getElectricalMeasurements());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -59,6 +64,7 @@ export default function App() {
     setServiceRequests(getServiceRequests());
     setOperatingConditions(getOperatingConditionsReports());
     setSafetyEvaluations(getSafetyEvaluations());
+    setElectricalMeasurements(getElectricalMeasurements());
   };
 
   const handleSelectRole = (role: UserRole) => {
@@ -116,6 +122,17 @@ export default function App() {
     setSafetyEvaluations(updated);
   };
 
+  // Electrical Measurements (Página 9) CRUD
+  const handleSaveElectricalMeasurement = (rep: ElectricalMeasurementsReport) => {
+    const updated = saveElectricalMeasurement(rep);
+    setElectricalMeasurements(updated);
+  };
+
+  const handleDeleteElectricalMeasurement = (id: string) => {
+    const updated = deleteElectricalMeasurement(id);
+    setElectricalMeasurements(updated);
+  };
+
   // If no role is selected, show exclusively the RoleSelector
   if (!activeRole) {
     return <RoleSelector onSelectRole={handleSelectRole} />;
@@ -150,6 +167,7 @@ export default function App() {
           serviceRequestsCount={serviceRequests.length}
           operatingConditionsCount={operatingConditions.length}
           safetyEvaluationsCount={safetyEvaluations.length}
+          electricalMeasurementsCount={electricalMeasurements.length}
         />
 
         {/* Content View Area */}
@@ -163,6 +181,7 @@ export default function App() {
               serviceRequestsCount={serviceRequests.length}
               operatingConditionsCount={operatingConditions.length}
               safetyEvaluationsCount={safetyEvaluations.length}
+              electricalMeasurementsCount={electricalMeasurements.length}
             />
           )}
 
@@ -217,6 +236,15 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'mediciones_electricas' && (
+            <ElectricalMeasurementsModule
+              reports={electricalMeasurements}
+              activeRole={activeRole}
+              onSaveReport={handleSaveElectricalMeasurement}
+              onDeleteReport={handleDeleteElectricalMeasurement}
+            />
+          )}
+
           {currentTab === 'verificador' && (
             <BarcodeVerifier
               reports={reports}
@@ -243,6 +271,7 @@ export default function App() {
         serviceRequestsCount={serviceRequests.length}
         operatingConditionsCount={operatingConditions.length}
         safetyEvaluationsCount={safetyEvaluations.length}
+        electricalMeasurementsCount={electricalMeasurements.length}
       />
 
       {/* PWA Installation Modal */}

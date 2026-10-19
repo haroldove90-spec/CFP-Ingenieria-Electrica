@@ -11,7 +11,8 @@ import {
   LogOut, 
   FileText,
   Wrench,
-  ClipboardList
+  ClipboardList,
+  Activity
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -22,6 +23,7 @@ export type ActiveTab =
   | 'solicitud_servicios' 
   | 'condiciones_operativas' 
   | 'evaluacion_seguridad'
+  | 'mediciones_electricas'
   | 'verificador' 
   | 'configuracion';
 
@@ -36,6 +38,7 @@ interface SidebarProps {
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
+  electricalMeasurementsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -49,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
+  electricalMeasurementsCount = 0,
 }) => {
   const menuItems = [
     {
@@ -87,6 +91,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Evaluación de Seguridad',
       icon: ShieldCheck,
       badge: 'Pág. 5-8',
+    },
+    {
+      id: 'mediciones_electricas' as ActiveTab,
+      label: 'Mediciones de Variables',
+      icon: Activity,
+      badge: 'Pág. 9',
     },
     {
       id: 'verificador' as ActiveTab,
