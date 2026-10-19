@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   LayoutDashboard, 
   FileCheck2, 
@@ -10,11 +9,20 @@ import {
   ShieldCheck, 
   Zap, 
   LogOut, 
-  FileText
+  FileText,
+  Wrench,
+  ClipboardList
 } from 'lucide-react';
 import { UserRole } from '../types';
 
-export type ActiveTab = 'dashboard' | 'revisiones' | 'nuevo_dictamen' | 'verificador' | 'configuracion';
+export type ActiveTab = 
+  | 'dashboard' 
+  | 'nuevo_dictamen' 
+  | 'revisiones' 
+  | 'solicitud_servicios' 
+  | 'condiciones_operativas' 
+  | 'verificador' 
+  | 'configuracion';
 
 interface SidebarProps {
   currentTab: ActiveTab;
@@ -24,6 +32,8 @@ interface SidebarProps {
   activeRole: UserRole;
   onLogout: () => void;
   reportsCount: number;
+  serviceRequestsCount?: number;
+  operatingConditionsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -34,6 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeRole,
   onLogout,
   reportsCount,
+  serviceRequestsCount = 0,
+  operatingConditionsCount = 0,
 }) => {
   const menuItems = [
     {
@@ -56,6 +68,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: reportsCount.toString(),
     },
     {
+      id: 'solicitud_servicios' as ActiveTab,
+      label: 'Solicitud de Servicios',
+      icon: ClipboardList,
+      badge: serviceRequestsCount > 0 ? serviceRequestsCount.toString() : null,
+    },
+    {
+      id: 'condiciones_operativas' as ActiveTab,
+      label: 'Revisión Instalaciones Eléctricas',
+      icon: Wrench,
+      badge: 'Pág. 3 y 4',
+    },
+    {
       id: 'verificador' as ActiveTab,
       label: 'Verificador Código / QR',
       icon: Barcode,
@@ -63,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'configuracion' as ActiveTab,
-      label: 'Base de Datos & Supabase',
+      label: 'Administración de Datos',
       icon: Server,
       badge: null,
     },

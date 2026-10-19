@@ -5,17 +5,22 @@ interface SignatureModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveSignature: (signatureDataUrl: string) => void;
-  peritoNombre: string;
-  cedula: string;
+  peritoNombre?: string;
+  cedula?: string;
+  signerName?: string;
+  title?: string;
 }
 
 export const SignatureModal: React.FC<SignatureModalProps> = ({
   isOpen,
   onClose,
   onSaveSignature,
-  peritoNombre,
-  cedula,
+  peritoNombre = 'Ing. Israel Orozco Arias',
+  cedula = '15240154',
+  signerName,
+  title,
 }) => {
+  const displayName = signerName || peritoNombre;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
@@ -130,10 +135,10 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-sm sm:text-base text-white">
-                Firma Electrónica del Perito
+                {title || 'Firma Electrónica'}
               </h3>
               <p className="text-xs text-slate-400">
-                {peritoNombre} • Cédula: {cedula}
+                {displayName} {cedula ? `• Cédula: ${cedula}` : ''}
               </p>
             </div>
           </div>
@@ -155,8 +160,8 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
           <div className="relative w-full h-56 sm:h-64 bg-white rounded-xl border-2 border-dashed border-slate-400 shadow-inner overflow-hidden touch-none">
             {/* Guide line */}
             <div className="absolute left-6 right-6 bottom-10 border-b border-slate-300 pointer-events-none flex justify-between text-[10px] text-slate-400 select-none pb-1">
-              <span>X Firma del Perito Dictaminador</span>
-              <span>{peritoNombre}</span>
+              <span>X Firma de Conformidad</span>
+              <span>{displayName}</span>
             </div>
 
             <canvas

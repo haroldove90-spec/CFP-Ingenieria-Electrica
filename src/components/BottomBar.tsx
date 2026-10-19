@@ -1,17 +1,21 @@
 import React from 'react';
-import { LayoutDashboard, FileCheck2, PlusCircle, Barcode, Server } from 'lucide-react';
+import { LayoutDashboard, FileCheck2, PlusCircle, ClipboardList, Wrench } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface BottomBarProps {
   currentTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
   reportsCount: number;
+  serviceRequestsCount?: number;
+  operatingConditionsCount?: number;
 }
 
 export const BottomBar: React.FC<BottomBarProps> = ({
   currentTab,
   onSelectTab,
   reportsCount,
+  serviceRequestsCount = 0,
+  operatingConditionsCount = 0,
 }) => {
   const tabs = [
     {
@@ -21,25 +25,27 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     },
     {
       id: 'nuevo_dictamen' as ActiveTab,
-      label: '+ Nuevo',
+      label: '+ Dictamen',
       icon: PlusCircle,
       isAction: true,
+    },
+    {
+      id: 'solicitud_servicios' as ActiveTab,
+      label: 'Solicitud',
+      icon: ClipboardList,
+      badge: serviceRequestsCount,
+    },
+    {
+      id: 'condiciones_operativas' as ActiveTab,
+      label: 'Rev. Eléc.',
+      icon: Wrench,
+      badge: operatingConditionsCount,
     },
     {
       id: 'revisiones' as ActiveTab,
       label: 'Historial',
       icon: FileCheck2,
       badge: reportsCount,
-    },
-    {
-      id: 'verificador' as ActiveTab,
-      label: 'Escanear',
-      icon: Barcode,
-    },
-    {
-      id: 'configuracion' as ActiveTab,
-      label: 'Datos',
-      icon: Server,
     },
   ];
 

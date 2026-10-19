@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   FileCheck2, 
   Zap, 
@@ -11,7 +10,9 @@ import {
   AlertTriangle, 
   Barcode as BarcodeIcon,
   Server,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  Wrench
 } from 'lucide-react';
 import { RevisionReport, UserRole } from '../types';
 import { ActiveTab } from './Sidebar';
@@ -21,6 +22,8 @@ interface DashboardOverviewProps {
   activeRole: UserRole;
   onNavigate: (tab: ActiveTab) => void;
   onOpenDataModal: () => void;
+  serviceRequestsCount?: number;
+  operatingConditionsCount?: number;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -28,6 +31,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   activeRole,
   onNavigate,
   onOpenDataModal,
+  serviceRequestsCount = 0,
+  operatingConditionsCount = 0,
 }) => {
   // Aggregate stats
   const totalReports = reports.length;
@@ -51,7 +56,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="relative z-10 max-w-2xl space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Colegio Federal de Peritos • Michoacán</span>
+            <span>Ingeniería Eléctrica CFP • Michoacán</span>
           </div>
 
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">
@@ -68,7 +73,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="px-4 py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Crear Nuevo Dictamen</span>
+              <span>Nuevo Dictamen</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('solicitud_servicios')}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+            >
+              <ClipboardList className="w-4 h-4 text-amber-400" />
+              <span>Solicitudes ({serviceRequestsCount})</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('condiciones_operativas')}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+            >
+              <Wrench className="w-4 h-4 text-cyan-400" />
+              <span>Revisión Instalaciones ({operatingConditionsCount})</span>
             </button>
 
             <button
@@ -76,15 +97,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
               <FileCheck2 className="w-4 h-4 text-emerald-400" />
-              <span>Historial de Dictámenes ({totalReports})</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('verificador')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
-            >
-              <BarcodeIcon className="w-4 h-4 text-cyan-400" />
-              <span>Verificador de Código</span>
+              <span>Historial ({totalReports})</span>
             </button>
           </div>
         </div>
@@ -265,15 +278,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
           </div>
 
-          {/* Quick Management & Supabase card */}
+          {/* Quick Management & Database card */}
           <div className="bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 shadow-sm space-y-3">
             <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wide">
               <Server className="w-4 h-4" />
-              <span>Base de Datos & Supabase</span>
+              <span>Administración de Base de Datos</span>
             </div>
 
             <p className="text-xs text-slate-300">
-              Administra los datos de muestra, activa la exclusión permanente en este navegador o borra registros en Supabase.
+              Administra los registros y datos del sistema, activa la exclusión de datos muestra o gestiona la persistencia.
             </p>
 
             <button

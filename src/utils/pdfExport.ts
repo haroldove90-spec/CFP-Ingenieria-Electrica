@@ -177,3 +177,131 @@ export async function exportDocumentToPdf(
     return false;
   }
 }
+
+/**
+ * Exports multiple DOM elements into a multi-page PDF (Letter format)
+ * Useful for multi-page inspection reports like Página 3 and Página 4
+ */
+export async function exportMultiPageDocumentToPdf(
+  elementIds: string[],
+  filename: string,
+  isGreenSecurityPaper = false
+): Promise<boolean> {
+  const elements = elementIds.map(id => document.getElementById(id)).filter((el): el is HTMLElement => el !== null);
+  if (elements.length === 0) {
+    console.error('No elements found for multi-page PDF export');
+    return false;
+  }
+
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+      compress: true,
+    });
+
+    const pdfWidth = 215.9;
+    const pdfHeight = 279.4;
+    const margin = 5;
+    const availableWidth = pdfWidth - margin * 2;
+    const availableHeight = pdfHeight - margin * 2;
+
+    let securityBgDataUrl: string | null = null;
+    if (isGreenSecurityPaper) {
+      securityBgDataUrl = await loadSecurityBackground();
+    }
+
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (i > 0) {
+        pdf.addPage('letter', 'portrait');
+      }
+
+      // Draw background
+      if (isGreenSecurityPaper && securityBgDataUrl) {
+        pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      } else {
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      }
+
+      // Backup styles
+      const prevBg = el.style.backgroundColor;
+      const prevBgImg = el.style.backgroundImage;
+      const prevShadow = el.style.boxShadow;
+      const prevBorder = el.style.border;
+
+      el.style.setProperty('transition', 'none', 'important');
+      el.style.setProperty('background-image', 'none', 'important');
+      el.style.setProperty('background-color', 'transparent', 'important');
+      el.style.setProperty('box-shadow', 'none', 'important');
+      el.style.setProperty('border', 'none', 'important');
+
+      const contentPng = await toPng(el, {
+        pixelRatio: 2.2,
+        backgroundColor: 'transparent',
+        style: {
+          transform: 'none',
+          margin: '0',
+          backgroundColor: 'transparent',
+          backgroundImage: 'none',
+          boxShadow: 'none',
+          border: 'none',
+        },
+        filter: (node) => {
+          if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+            return false;
+          }
+          return true;
+        },
+      });
+
+      // Restore styles
+      el.style.backgroundColor = prevBg;
+      el.style.backgroundImage = prevBgImg;
+      el.style.boxShadow = prevShadow;
+      el.style.border = prevBorder;
+
+      const img = new Image();
+      img.src = contentPng;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      const imgAspect = img.height / img.width;
+      let finalWidth = availableWidth;
+      let finalHeight = finalWidth * imgAspect;
+
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = finalHeight / imgAspect;
+      }
+
+      const posX = margin + (availableWidth - finalWidth) / 2;
+      const posY = margin + (availableHeight - finalHeight) / 2;
+
+      pdf.addImage(contentPng, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
+    }
+
+    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = cleanFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 4000);
+
+    return true;
+  } catch (error) {
+    console.error('Error in exportMultiPageDocumentToPdf:', error);
+    alert('Ocurrió un inconveniente al exportar el PDF. Por favor reintente.');
+    return false;
+  }
+}

@@ -1,6 +1,8 @@
-import { RevisionReport, SupabaseSettings } from '../types';
+import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport } from '../types';
 
 const STORAGE_KEY_REPORTS = 'cfp_revision_reports';
+const STORAGE_KEY_SERVICE_REQUESTS = 'cfp_service_requests';
+const STORAGE_KEY_OPERATING_CONDITIONS = 'cfp_operating_conditions';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -287,3 +289,185 @@ export async function syncReportsToSupabase(reports: RevisionReport[], settings:
     return { success: false, message: `Fallo de conexión a Supabase: ${err.message || err}` };
   }
 }
+
+// ==========================================
+// MÓDULO 1: SOLICITUDES DE SERVICIOS
+// ==========================================
+
+export const SAMPLE_SERVICE_REQUESTS: ServiceRequest[] = [
+  {
+    id: 'sol-01',
+    folio: '01',
+    fechaVisita: '02-oct-26',
+    
+    // Datos del Perito
+    peritoRegistroCfp: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoCedula: '15240154',
+    peritoTelefono: '4431748638',
+    peritoEmail: 'israel9b@hotmail.com',
+    peritoNombre: 'ING.ISRAEL OROZCO ARIAS',
+    
+    // Datos de la Instalación
+    nombreComercial: 'ABARROTES AZTECA SUC. TIJERAS',
+    nombreRazonSocial: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+    rfc: 'AAT170629U46',
+    calleNumero: 'JUAN DE BAEZA #600',
+    coloniaPoblacion: 'DIECIOCHO DE MAYO',
+    municipioDelegacion: 'MORELIA',
+    ciudadEstado: 'MORELIA, MICHOACÁN',
+    codigoPostal: '58258',
+    telefonoInstalacion: '4433234075',
+    
+    // Solicitante del Servicio
+    solicitanteNombre: 'VICTOR DANIEL RIOS RAMIREZ',
+    solicitanteTelefono: '4438573253',
+    
+    // REFERENCIA: Foto de la Fachada / Inmueble
+    fotoReferencia: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=1200&q=80',
+    esMuestra: true,
+  }
+];
+
+export function getServiceRequests(): ServiceRequest[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_SERVICE_REQUESTS);
+  const hideDemo = isDemoDataHidden();
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(SAMPLE_SERVICE_REQUESTS));
+    return SAMPLE_SERVICE_REQUESTS;
+  }
+
+  try {
+    const list: ServiceRequest[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_SERVICE_REQUESTS;
+  }
+}
+
+export function saveServiceRequest(request: ServiceRequest): ServiceRequest[] {
+  const current = getServiceRequests();
+  const existsIndex = current.findIndex(r => r.id === request.id || r.folio === request.folio);
+  let updated: ServiceRequest[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = { ...request, esMuestra: false };
+  } else {
+    updated = [request, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteServiceRequest(id: string): ServiceRequest[] {
+  const current = getServiceRequests();
+  const updated = current.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(updated));
+  return updated;
+}
+
+// ==========================================
+// MÓDULO 2: CONDICIONES OPERATIVAS Y DE MANTENIMIENTO
+// ==========================================
+
+export const SAMPLE_OPERATING_CONDITIONS: OperatingConditionsReport[] = [
+  {
+    id: 'com-088',
+    folio: '088',
+    claveExpediente: 'CFP0125/COM/IOA/0088/2026',
+    fechaInspeccion: '15-oct-26',
+    nombreComercial: 'AGROEXPORTADORA DEL VALLE',
+    razonSocial: 'AGROEXPORTADORA DEL VALLE S.P.R. DE R.L.',
+    rfc: 'AVM190312KP8',
+    giro: 'INDUSTRIA PROCESADORA DE AGROALIMENTOS Y EMPACADORA',
+    calleNumero: 'CARRETERA MORELIA-PATZCUARO KM 14.5',
+    colonia: 'PARQUE INDUSTRIAL MORELIA',
+    municipio: 'MORELIA',
+    ciudadEstado: 'MORELIA, MICHOACÁN',
+    codigoPostal: '58340',
+    telefono: '4432198000',
+    contacto: 'ING. MARCELO DELGADO CÁRDENAS',
+    tipoInstalacion: 'Media y Baja Tensión',
+    tensionOperacion: '13,200 V / 220-127 V',
+    capacidadTransformadorKva: 225,
+    demandaMedidaKw: 148.5,
+    resistenciaTierraOhms: 6.4,
+    estadoSubestacion: 'Satisfactorio',
+    estadoTableros: 'Satisfactorio',
+    estadoConductoresCanalizaciones: 'Observaciones Menores',
+    estadoSistemaTierras: 'Satisfactorio',
+    estadoProteccionesSobrecarga: 'Satisfactorio',
+    estadoAlumbradoEmergencia: 'Satisfactorio',
+    programaMantenimientoVigente: true,
+    ultimoMantenimientoFecha: '10-sep-26',
+    responsableMantenimiento: 'Mantenimiento Electromecánico del Centro S.A.',
+    pruebasAislamientoMegger: 'Conforme',
+    pruebasTermografiaInfrarroja: 'Sin Puntos Calientes',
+    limpiezaOrdenCuartoElectrico: 'Excelente',
+    equipoProteccionPersonalYRotulacion: 'Completo',
+    dictamenCondiciones: 'Condición Operativa Satisfactoria (Aprobada)',
+    plazoCorreccionDias: 30,
+    accionesRequeridas: 'Sellar adecuadamente una canalización conduit de 2 pulgadas en el muro perimetral del cuarto de tableros.',
+    notasRecomendaciones: 'La instalación opera con niveles de seguridad óptimos de acuerdo a la NOM-001-SEDE-2012 y NOM-029-STPS-2011. Valores de resistencia de tierra dentro de norma (6.4 ohms < 25 ohms).',
+    evidencias: [],
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoCedula: '15240154',
+    peritoTelefono: '4431748638',
+    peritoEmail: 'israel9b@hotmail.com',
+    esMuestra: true,
+  }
+];
+
+export function getOperatingConditionsReports(): OperatingConditionsReport[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_OPERATING_CONDITIONS);
+  const hideDemo = isDemoDataHidden();
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(SAMPLE_OPERATING_CONDITIONS));
+    return SAMPLE_OPERATING_CONDITIONS;
+  }
+
+  try {
+    const list: OperatingConditionsReport[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_OPERATING_CONDITIONS;
+  }
+}
+
+export function saveOperatingConditionsReport(report: OperatingConditionsReport): OperatingConditionsReport[] {
+  const current = getOperatingConditionsReports();
+  const existsIndex = current.findIndex(r => r.id === report.id || r.folio === report.folio);
+  let updated: OperatingConditionsReport[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = { ...report, esMuestra: false };
+  } else {
+    updated = [report, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteOperatingConditionsReport(id: string): OperatingConditionsReport[] {
+  const current = getOperatingConditionsReports();
+  const updated = current.filter(r => r.id !== id);
+  localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(updated));
+  return updated;
+}
+
