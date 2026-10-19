@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, RevisionReport, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport, ElectricalMeasurementsReport } from './types';
+import { 
+  UserRole, 
+  RevisionReport, 
+  ServiceRequest, 
+  OperatingConditionsReport, 
+  SafetyEvaluationReport, 
+  ElectricalMeasurementsReport,
+  SingleLineDiagram,
+  PeritoCedula,
+  PeritoCertificado
+} from './types';
 import { 
   getActiveRole, 
   setActiveRole as persistActiveRole, 
@@ -17,7 +27,14 @@ import {
   deleteSafetyEvaluation,
   getElectricalMeasurements,
   saveElectricalMeasurement,
-  deleteElectricalMeasurement
+  deleteElectricalMeasurement,
+  getSingleLineDiagrams,
+  saveSingleLineDiagram,
+  deleteSingleLineDiagram,
+  getPeritoCedula,
+  savePeritoCedula,
+  getPeritoCertificado,
+  savePeritoCertificado
 } from './utils/storage';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { RoleSelector } from './components/RoleSelector';
@@ -30,6 +47,9 @@ import { ServiceRequestModule } from './components/ServiceRequestModule';
 import { OperatingConditionsModule } from './components/OperatingConditionsModule';
 import { SafetyEvaluationModule } from './components/SafetyEvaluationModule';
 import { ElectricalMeasurementsModule } from './components/ElectricalMeasurementsModule';
+import { SingleLineDiagramModule } from './components/SingleLineDiagramModule';
+import { PeritoCedulaModule } from './components/PeritoCedulaModule';
+import { PeritoCertificadoModule } from './components/PeritoCertificadoModule';
 import { BarcodeVerifier } from './components/BarcodeVerifier';
 import { SupabaseConfigView } from './components/SupabaseConfigView';
 import { PWAInstallModal } from './components/PWAInstallModal';
@@ -51,6 +71,9 @@ export default function App() {
   const [operatingConditions, setOperatingConditions] = useState<OperatingConditionsReport[]>(() => getOperatingConditionsReports());
   const [safetyEvaluations, setSafetyEvaluations] = useState<SafetyEvaluationReport[]>(() => getSafetyEvaluations());
   const [electricalMeasurements, setElectricalMeasurements] = useState<ElectricalMeasurementsReport[]>(() => getElectricalMeasurements());
+  const [diagrams, setDiagrams] = useState<SingleLineDiagram[]>(() => getSingleLineDiagrams());
+  const [cedula, setCedula] = useState<PeritoCedula>(() => getPeritoCedula());
+  const [certificado, setCertificado] = useState<PeritoCertificado>(() => getPeritoCertificado());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -65,6 +88,9 @@ export default function App() {
     setOperatingConditions(getOperatingConditionsReports());
     setSafetyEvaluations(getSafetyEvaluations());
     setElectricalMeasurements(getElectricalMeasurements());
+    setDiagrams(getSingleLineDiagrams());
+    setCedula(getPeritoCedula());
+    setCertificado(getPeritoCertificado());
   };
 
   const handleSelectRole = (role: UserRole) => {
@@ -133,6 +159,29 @@ export default function App() {
     setElectricalMeasurements(updated);
   };
 
+  // Diagrama Unifilar CRUD
+  const handleSaveDiagram = (diag: SingleLineDiagram) => {
+    const updated = saveSingleLineDiagram(diag);
+    setDiagrams(updated);
+  };
+
+  const handleDeleteDiagram = (id: string) => {
+    const updated = deleteSingleLineDiagram(id);
+    setDiagrams(updated);
+  };
+
+  // Cédula Profesional del Perito
+  const handleSaveCedula = (newCedula: PeritoCedula) => {
+    const updated = savePeritoCedula(newCedula);
+    setCedula(updated);
+  };
+
+  // Certificado como Perito Dictaminador CFP
+  const handleSaveCertificado = (newCert: PeritoCertificado) => {
+    const updated = savePeritoCertificado(newCert);
+    setCertificado(updated);
+  };
+
   // If no role is selected, show exclusively the RoleSelector
   if (!activeRole) {
     return <RoleSelector onSelectRole={handleSelectRole} />;
@@ -168,6 +217,7 @@ export default function App() {
           operatingConditionsCount={operatingConditions.length}
           safetyEvaluationsCount={safetyEvaluations.length}
           electricalMeasurementsCount={electricalMeasurements.length}
+          diagramsCount={diagrams.length}
         />
 
         {/* Content View Area */}
@@ -182,6 +232,7 @@ export default function App() {
               operatingConditionsCount={operatingConditions.length}
               safetyEvaluationsCount={safetyEvaluations.length}
               electricalMeasurementsCount={electricalMeasurements.length}
+              diagramsCount={diagrams.length}
             />
           )}
 
@@ -245,6 +296,31 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'diagrama_unifilar' && (
+            <SingleLineDiagramModule
+              diagrams={diagrams}
+              activeRole={activeRole}
+              onSaveDiagram={handleSaveDiagram}
+              onDeleteDiagram={handleDeleteDiagram}
+            />
+          )}
+
+          {currentTab === 'cedula_perito' && (
+            <PeritoCedulaModule
+              cedula={cedula}
+              activeRole={activeRole}
+              onSaveCedula={handleSaveCedula}
+            />
+          )}
+
+          {currentTab === 'certificado_perito' && (
+            <PeritoCertificadoModule
+              certificado={certificado}
+              activeRole={activeRole}
+              onSaveCertificado={handleSaveCertificado}
+            />
+          )}
+
           {currentTab === 'verificador' && (
             <BarcodeVerifier
               reports={reports}
@@ -272,6 +348,7 @@ export default function App() {
         operatingConditionsCount={operatingConditions.length}
         safetyEvaluationsCount={safetyEvaluations.length}
         electricalMeasurementsCount={electricalMeasurements.length}
+        diagramsCount={diagrams.length}
       />
 
       {/* PWA Installation Modal */}

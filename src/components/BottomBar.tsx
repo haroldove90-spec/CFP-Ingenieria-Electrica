@@ -10,6 +10,7 @@ interface BottomBarProps {
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
   electricalMeasurementsCount?: number;
+  diagramsCount?: number;
 }
 
 export const BottomBar: React.FC<BottomBarProps> = ({
@@ -20,6 +21,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
   electricalMeasurementsCount = 0,
+  diagramsCount = 0,
 }) => {
   const tabs = [
     {

@@ -376,3 +376,67 @@ export interface ElectricalMeasurementsReport {
   esMuestra?: boolean;
 }
 
+// ==========================================
+// MÓDULO: DIAGRAMA UNIFILAR GENERAL
+// ==========================================
+export interface SingleLineDiagram {
+  id: string;
+  folio: string;
+  claveExpediente: string;
+  titulo: string;
+  fecha: string;
+  titularNombreComercial: string;
+  titularRazonSocial: string;
+  titularRfc: string;
+  titularDireccion?: string;
+  peritoNombre: string;
+  peritoAfiliacion: string;
+  peritoCedula: string;
+  imagenDataUrl: string;
+  orientacion: 'horizontal' | 'vertical'; // Horizontal (Landscape) o Vertical (Portrait)
+  ajusteModo: 'carta_completa' | 'con_membrete'; // Tamaño carta abarcado completo / con membrete
+  rotacionGrados?: number; // 0, 90, 180, 270
+  notasTecnicas?: string;
+  subestacionKva?: number;
+  tensionPrimaria?: string;
+  tensionSecundaria?: string;
+  esMuestra?: boolean;
+}
+
+// ==========================================
+// MÓDULO: CÉDULA PROFESIONAL DEL PERITO
+// ==========================================
+export interface PeritoCedula {
+  id: string;
+  peritoNombre: string;
+  numeroCedula: string;
+  profesion: string;
+  institucionEmisora: string;
+  fechaExpedicion: string;
+  curp?: string;
+  folioRegistro?: string;
+  imagenDataUrl: string;
+  anchoCompleto: boolean; // Todo lo ancho de la página tamaño carta
+  esMuestra?: boolean;
+  observaciones?: string;
+}
+
+// ==========================================
+// MÓDULO: CERTIFICADO COMO PERITO DICTAMINADOR EN MEDIA Y BAJA TENSIÓN
+// ==========================================
+export interface PeritoCertificado {
+  id: string;
+  tituloCertificado: string;
+  colegioEmisor: string;
+  peritoNombre: string;
+  numeroRegistro: string;
+  numeroCedula: string;
+  especialidad: string;
+  vigencia: string;
+  fechaEmision: string;
+  imagenDataUrl: string;
+  ajusteCompleto: boolean; // A todo lo ancho y largo en hoja tamaño carta
+  esMuestra?: boolean;
+  observaciones?: string;
+}
+

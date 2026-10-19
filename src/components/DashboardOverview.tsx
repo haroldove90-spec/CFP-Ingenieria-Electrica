@@ -12,7 +12,9 @@ import {
   Server,
   Sparkles,
   ClipboardList,
-  Wrench
+  Wrench,
+  Layers,
+  Award
 } from 'lucide-react';
 import { RevisionReport, UserRole } from '../types';
 import { ActiveTab } from './Sidebar';
@@ -26,6 +28,7 @@ interface DashboardOverviewProps {
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
   electricalMeasurementsCount?: number;
+  diagramsCount?: number;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -37,6 +40,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
   electricalMeasurementsCount = 0,
+  diagramsCount = 0,
 }) => {
   // Aggregate stats
   const totalReports = reports.length;
@@ -81,6 +85,38 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </button>
 
             <button
+              onClick={() => onNavigate('diagrama_unifilar')}
+              className="px-3.5 py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-semibold rounded-xl text-xs sm:text-sm border border-sky-500/40 transition cursor-pointer flex items-center gap-2"
+            >
+              <Layers className="w-4 h-4 text-sky-400" />
+              <span>Diagrama Unifilar (Carta H/V)</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('cedula_perito')}
+              className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold rounded-xl text-xs sm:text-sm border border-emerald-500/40 transition cursor-pointer flex items-center gap-2"
+            >
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span>Cédula Profesional</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('certificado_perito')}
+              className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold rounded-xl text-xs sm:text-sm border border-amber-500/40 transition cursor-pointer flex items-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Certificado Perito</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('mediciones_electricas')}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+            >
+              <Activity className="w-4 h-4 text-amber-400" />
+              <span>Mediciones Pág 9 ({electricalMeasurementsCount})</span>
+            </button>
+
+            <button
               onClick={() => onNavigate('solicitud_servicios')}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
             >
@@ -102,14 +138,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             >
               <ShieldCheck className="w-4 h-4 text-purple-400" />
               <span>Seguridad Pág 5-8 ({safetyEvaluationsCount})</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('mediciones_electricas')}
-              className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold rounded-xl text-xs sm:text-sm border border-amber-500/40 transition cursor-pointer flex items-center gap-2"
-            >
-              <Activity className="w-4 h-4 text-amber-400" />
-              <span>Mediciones Pág 9 ({electricalMeasurementsCount})</span>
             </button>
 
             <button

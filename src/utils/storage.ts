@@ -1,10 +1,28 @@
-import { RevisionReport, SupabaseSettings, ServiceRequest, OperatingConditionsReport, SafetyEvaluationReport, ElectricalMeasurementsReport } from '../types';
+import { 
+  RevisionReport, 
+  SupabaseSettings, 
+  ServiceRequest, 
+  OperatingConditionsReport, 
+  SafetyEvaluationReport, 
+  ElectricalMeasurementsReport,
+  SingleLineDiagram,
+  PeritoCedula,
+  PeritoCertificado
+} from '../types';
+import { 
+  SAMPLE_DIAGRAM_DATA_URL, 
+  SAMPLE_CEDULA_DATA_URL, 
+  SAMPLE_CERTIFICADO_DATA_URL 
+} from './documentSamples';
 
 const STORAGE_KEY_REPORTS = 'cfp_revision_reports';
 const STORAGE_KEY_SERVICE_REQUESTS = 'cfp_service_requests';
 const STORAGE_KEY_OPERATING_CONDITIONS = 'cfp_operating_conditions';
 const STORAGE_KEY_SAFETY_EVALUATIONS = 'cfp_safety_evaluations';
 const STORAGE_KEY_ELECTRICAL_MEASUREMENTS = 'cfp_electrical_measurements';
+const STORAGE_KEY_SINGLE_LINE_DIAGRAMS = 'cfp_single_line_diagrams';
+const STORAGE_KEY_PERITO_CEDULA = 'cfp_perito_cedula';
+const STORAGE_KEY_PERITO_CERTIFICADO = 'cfp_perito_certificado';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -197,6 +215,10 @@ export function clearSampleData(): { removedCount: number; remainingCount: numbe
   const elec = getElectricalMeasurements().filter(r => !r.esMuestra);
   localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(elec));
 
+  // Single-line diagrams
+  const diag = getSingleLineDiagrams().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(diag));
+
   return { removedCount, remainingCount: nonDemo.length };
 }
 
@@ -207,6 +229,7 @@ export function wipeAllReports(): void {
   localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify([]));
 }
 
 export function restoreSampleData(): RevisionReport[] {
@@ -216,6 +239,9 @@ export function restoreSampleData(): RevisionReport[] {
   localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(SAMPLE_OPERATING_CONDITIONS));
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(SAMPLE_SAFETY_EVALUATIONS));
   localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(SAMPLE_ELECTRICAL_MEASUREMENTS));
+  localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(SAMPLE_SINGLE_LINE_DIAGRAMS));
+  localStorage.setItem(STORAGE_KEY_PERITO_CEDULA, JSON.stringify(SAMPLE_PERITO_CEDULA));
+  localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(SAMPLE_PERITO_CERTIFICADO));
   return SAMPLE_REPORTS;
 }
 
@@ -799,5 +825,156 @@ export function deleteElectricalMeasurement(id: string): ElectricalMeasurementsR
   const updated = current.filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(updated));
   return updated;
+}
+
+// ==========================================
+// SAMPLE DATA & CRUD: DIAGRAMA UNIFILAR GENERAL
+// ==========================================
+export const SAMPLE_SINGLE_LINE_DIAGRAMS: SingleLineDiagram[] = [
+  {
+    id: 'diag-359',
+    folio: '359',
+    claveExpediente: 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026',
+    titulo: 'DIAGRAMA UNIFILAR GENERAL - SUBESTACIÓN 75 kVA Y TABLEROS DE DISTRIBUCIÓN',
+    fecha: '02-oct-26',
+    titularNombreComercial: 'ABARROTES AZTECA SUC. TIJERAS',
+    titularRazonSocial: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+    titularRfc: 'AAT170629U46',
+    titularDireccion: 'JUAN DE BAEZA #600, COL. DIECIOCHO DE MAYO, MORELIA, MICHOACÁN',
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoCedula: '15240154',
+    imagenDataUrl: SAMPLE_DIAGRAM_DATA_URL,
+    orientacion: 'horizontal',
+    ajusteModo: 'carta_completa',
+    rotacionGrados: 0,
+    subestacionKva: 75,
+    tensionPrimaria: '13,200 V (13.2 kV)',
+    tensionSecundaria: '220/127 V - 3F - 4H',
+    notasTecnicas: 'Subestación tipo pedestal de 75 kVA con interruptor principal termomagnético 3x200A. Tablero general de distribución con circuitos para alumbrado, refrigeración y climatización. Sistema de puesta a tierra calibrado con resistencia de 4.8 Ω.',
+    esMuestra: true,
+  }
+];
+
+export function getSingleLineDiagrams(): SingleLineDiagram[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS);
+  const hideDemo = isDemoDataHidden();
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(SAMPLE_SINGLE_LINE_DIAGRAMS));
+    return SAMPLE_SINGLE_LINE_DIAGRAMS;
+  }
+
+  try {
+    const list: SingleLineDiagram[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_SINGLE_LINE_DIAGRAMS;
+  }
+}
+
+export function saveSingleLineDiagram(diagram: SingleLineDiagram): SingleLineDiagram[] {
+  const current = getSingleLineDiagrams();
+  const existsIndex = current.findIndex(d => d.id === diagram.id || d.folio === diagram.folio);
+  let updated: SingleLineDiagram[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = { ...diagram, esMuestra: false };
+  } else {
+    updated = [diagram, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteSingleLineDiagram(id: string): SingleLineDiagram[] {
+  const current = getSingleLineDiagrams();
+  const updated = current.filter(d => d.id !== id);
+  localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(updated));
+  return updated;
+}
+
+// ==========================================
+// SAMPLE DATA & CRUD: CÉDULA PROFESIONAL DEL PERITO
+// ==========================================
+export const SAMPLE_PERITO_CEDULA: PeritoCedula = {
+  id: 'cedula-ioa',
+  peritoNombre: 'Ing. Israel Orozco Arias',
+  numeroCedula: '15240154',
+  profesion: 'Ingeniero Mecánico Electricista',
+  institucionEmisora: 'Secretaría de Educación Pública - Dirección General de Profesiones',
+  fechaExpedicion: '18 de Mayo de 2018',
+  curp: 'OOAI820414HMNRSR08',
+  folioRegistro: 'DGP-2018-MEX-88419',
+  imagenDataUrl: SAMPLE_CEDULA_DATA_URL,
+  anchoCompleto: true,
+  esMuestra: true,
+  observaciones: 'Cédula profesional electrónica federal con efectos de patente legal para dictaminación e inspección pericial en instalaciones eléctricas.'
+};
+
+export function getPeritoCedula(): PeritoCedula {
+  if (typeof window === 'undefined') return SAMPLE_PERITO_CEDULA;
+  const raw = localStorage.getItem(STORAGE_KEY_PERITO_CEDULA);
+  if (!raw) {
+    localStorage.setItem(STORAGE_KEY_PERITO_CEDULA, JSON.stringify(SAMPLE_PERITO_CEDULA));
+    return SAMPLE_PERITO_CEDULA;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return SAMPLE_PERITO_CEDULA;
+  }
+}
+
+export function savePeritoCedula(cedula: PeritoCedula): PeritoCedula {
+  const toSave = { ...cedula, esMuestra: false };
+  localStorage.setItem(STORAGE_KEY_PERITO_CEDULA, JSON.stringify(toSave));
+  return toSave;
+}
+
+// ==========================================
+// SAMPLE DATA & CRUD: CERTIFICADO DE PERITO DICTAMINADOR (CFP)
+// ==========================================
+export const SAMPLE_PERITO_CERTIFICADO: PeritoCertificado = {
+  id: 'cert-ioa-0071',
+  tituloCertificado: 'CERTIFICADO COMO PERITO DICTAMINADOR DE INSTALACIONES ELÉCTRICAS EN MEDIA Y BAJA TENSIÓN',
+  colegioEmisor: 'Colegio Federal de Peritos A.C.',
+  peritoNombre: 'Ing. Israel Orozco Arias',
+  numeroRegistro: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+  numeroCedula: '15240154',
+  especialidad: 'Instalaciones Eléctricas en Media y Baja Tensión',
+  vigencia: '2026 - 2028',
+  fechaEmision: '14 de Diciembre de 2020',
+  imagenDataUrl: SAMPLE_CERTIFICADO_DATA_URL,
+  ajusteCompleto: true,
+  esMuestra: true,
+  observaciones: 'Acreditación pericial oficial autorizada conforme a la NOM-001-SEDE-2012 y lineamientos del Colegio Federal de Peritos.'
+};
+
+export function getPeritoCertificado(): PeritoCertificado {
+  if (typeof window === 'undefined') return SAMPLE_PERITO_CERTIFICADO;
+  const raw = localStorage.getItem(STORAGE_KEY_PERITO_CERTIFICADO);
+  if (!raw) {
+    localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(SAMPLE_PERITO_CERTIFICADO));
+    return SAMPLE_PERITO_CERTIFICADO;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return SAMPLE_PERITO_CERTIFICADO;
+  }
+}
+
+export function savePeritoCertificado(cert: PeritoCertificado): PeritoCertificado {
+  const toSave = { ...cert, esMuestra: false };
+  localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(toSave));
+  return toSave;
 }
 

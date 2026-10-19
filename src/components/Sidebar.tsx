@@ -12,7 +12,9 @@ import {
   FileText,
   Wrench,
   ClipboardList,
-  Activity
+  Activity,
+  Layers,
+  Award
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -24,6 +26,9 @@ export type ActiveTab =
   | 'condiciones_operativas' 
   | 'evaluacion_seguridad'
   | 'mediciones_electricas'
+  | 'diagrama_unifilar'
+  | 'cedula_perito'
+  | 'certificado_perito'
   | 'verificador' 
   | 'configuracion';
 
@@ -39,6 +44,7 @@ interface SidebarProps {
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
   electricalMeasurementsCount?: number;
+  diagramsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,6 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
   electricalMeasurementsCount = 0,
+  diagramsCount = 0,
 }) => {
   const menuItems = [
     {
@@ -97,6 +104,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Mediciones de Variables',
       icon: Activity,
       badge: 'Pág. 9',
+    },
+    {
+      id: 'diagrama_unifilar' as ActiveTab,
+      label: 'Diagrama Unifilar General',
+      icon: Layers,
+      badge: 'Carta H/V',
+    },
+    {
+      id: 'cedula_perito' as ActiveTab,
+      label: 'Cédula Profesional',
+      icon: Award,
+      badge: 'SEP',
+    },
+    {
+      id: 'certificado_perito' as ActiveTab,
+      label: 'Certificado de Perito',
+      icon: ShieldCheck,
+      badge: 'CFP',
     },
     {
       id: 'verificador' as ActiveTab,

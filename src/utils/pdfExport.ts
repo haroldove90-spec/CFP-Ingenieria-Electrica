@@ -42,7 +42,9 @@ async function loadSecurityBackground(): Promise<string | null> {
 export async function exportDocumentToPdf(
   elementId: string, 
   filename: string,
-  isGreenSecurityPaper = true
+  isGreenSecurityPaper = true,
+  orientation: 'portrait' | 'landscape' = 'portrait',
+  customMargin = 5
 ): Promise<boolean> {
   const element = document.getElementById(elementId);
   if (!element) {
@@ -100,15 +102,16 @@ export async function exportDocumentToPdf(
     element.style.transition = '';
 
     // 4. Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
+    const isLandscape = orientation === 'landscape';
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: orientation,
       unit: 'mm',
       format: 'letter',
       compress: true,
     });
 
-    const pdfWidth = 215.9;
-    const pdfHeight = 279.4;
+    const pdfWidth = isLandscape ? 279.4 : 215.9;
+    const pdfHeight = isLandscape ? 215.9 : 279.4;
 
     // 5. Draw Full-Bleed Security Paper Background (Carta size)
     if (isGreenSecurityPaper) {
@@ -123,9 +126,9 @@ export async function exportDocumentToPdf(
     }
 
     // 6. Calculate dimensions and margins for document content
-    const margin = 5; // 5 mm margins
-    const availableWidth = pdfWidth - margin * 2; // 205.9 mm
-    const availableHeight = pdfHeight - margin * 2; // 269.4 mm
+    const margin = customMargin;
+    const availableWidth = pdfWidth - margin * 2;
+    const availableHeight = pdfHeight - margin * 2;
 
     const img = new Image();
     img.src = contentPng;
@@ -302,6 +305,89 @@ export async function exportMultiPageDocumentToPdf(
   } catch (error) {
     console.error('Error in exportMultiPageDocumentToPdf:', error);
     alert('Ocurrió un inconveniente al exportar el PDF. Por favor reintente.');
+    return false;
+  }
+}
+
+/**
+ * Exports an image directly to a Letter-sized PDF.
+ * Perfect for single-line diagrams, diplomas, and official credential cards
+ * allowing full width, full bleed, or margins in Portrait or Landscape.
+ */
+export async function exportDirectImageToPdf(options: {
+  imageDataUrl: string;
+  filename: string;
+  orientation?: 'portrait' | 'landscape';
+  fullBleed?: boolean;
+  marginMm?: number;
+}): Promise<boolean> {
+  const {
+    imageDataUrl,
+    filename,
+    orientation = 'portrait',
+    fullBleed = false,
+    marginMm = 0,
+  } = options;
+
+  try {
+    const isLandscape = orientation === 'landscape';
+    const pdf = new jsPDF({
+      orientation,
+      unit: 'mm',
+      format: 'letter',
+      compress: true,
+    });
+
+    const pdfWidth = isLandscape ? 279.4 : 215.9;
+    const pdfHeight = isLandscape ? 215.9 : 279.4;
+
+    // Clean white background
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+
+    const effectiveMargin = fullBleed ? 0 : marginMm;
+    const availableWidth = pdfWidth - effectiveMargin * 2;
+    const availableHeight = pdfHeight - effectiveMargin * 2;
+
+    const img = new Image();
+    img.src = imageDataUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('Failed to load image for PDF export'));
+    });
+
+    const imgAspect = img.height / img.width;
+    let finalWidth = availableWidth;
+    let finalHeight = finalWidth * imgAspect;
+
+    if (finalHeight > availableHeight) {
+      finalHeight = availableHeight;
+      finalWidth = finalHeight / imgAspect;
+    }
+
+    const posX = effectiveMargin + (availableWidth - finalWidth) / 2;
+    const posY = effectiveMargin + (availableHeight - finalHeight) / 2;
+
+    pdf.addImage(imageDataUrl, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
+
+    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = cleanFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 4000);
+
+    return true;
+  } catch (err) {
+    console.error('Error in exportDirectImageToPdf:', err);
+    alert('Ocurrió un error al generar el PDF del documento. Intente nuevamente.');
     return false;
   }
 }
