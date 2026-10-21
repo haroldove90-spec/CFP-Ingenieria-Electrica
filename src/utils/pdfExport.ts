@@ -39,13 +39,41 @@ async function loadSecurityBackground(): Promise<string | null> {
   return null;
 }
 
+export interface ExportPdfOptions {
+  isGreenSecurityPaper?: boolean;
+  orientation?: 'portrait' | 'landscape';
+  customMargin?: number;
+  printMode?: 'digital' | 'physical_paper'; // 'digital' includes security paper background; 'physical_paper' omits it for direct printing on physical security paper
+}
+
 export async function exportDocumentToPdf(
   elementId: string, 
   filename: string,
-  isGreenSecurityPaper = true,
+  isGreenSecurityPaperOrOptions: boolean | ExportPdfOptions = true,
   orientation: 'portrait' | 'landscape' = 'portrait',
   customMargin = 5
 ): Promise<boolean> {
+  const options: ExportPdfOptions = typeof isGreenSecurityPaperOrOptions === 'boolean'
+    ? { 
+        isGreenSecurityPaper: isGreenSecurityPaperOrOptions, 
+        orientation, 
+        customMargin,
+        printMode: isGreenSecurityPaperOrOptions ? 'digital' : 'physical_paper' 
+      }
+    : {
+        isGreenSecurityPaper: isGreenSecurityPaperOrOptions.printMode === 'physical_paper' 
+          ? false 
+          : (isGreenSecurityPaperOrOptions.isGreenSecurityPaper ?? true),
+        orientation: isGreenSecurityPaperOrOptions.orientation ?? orientation,
+        customMargin: isGreenSecurityPaperOrOptions.customMargin ?? customMargin,
+        printMode: isGreenSecurityPaperOrOptions.printMode ?? (isGreenSecurityPaperOrOptions.isGreenSecurityPaper === false ? 'physical_paper' : 'digital'),
+      };
+
+  const isGreenSecurityPaper = options.isGreenSecurityPaper ?? true;
+  const isPhysicalPaperMode = options.printMode === 'physical_paper' || !isGreenSecurityPaper;
+  const activeOrientation = options.orientation ?? 'portrait';
+  const effectiveMargin = options.customMargin ?? 5;
+
   const element = document.getElementById(elementId);
   if (!element) {
     console.error(`Element with id ${elementId} not found.`);
@@ -59,9 +87,9 @@ export async function exportDocumentToPdf(
   const prevBorder = element.style.border;
 
   try {
-    // 1. Preload official security paper background image if requested
+    // 1. Preload official security paper background image if requested (only in digital mode)
     let securityBgDataUrl: string | null = null;
-    if (isGreenSecurityPaper) {
+    if (isGreenSecurityPaper && !isPhysicalPaperMode) {
       securityBgDataUrl = await loadSecurityBackground();
     }
 
@@ -102,9 +130,9 @@ export async function exportDocumentToPdf(
     element.style.transition = '';
 
     // 4. Create Letter size PDF (215.9 mm x 279.4 mm - Tamaño Carta)
-    const isLandscape = orientation === 'landscape';
+    const isLandscape = activeOrientation === 'landscape';
     const pdf = new jsPDF({
-      orientation: orientation,
+      orientation: activeOrientation,
       unit: 'mm',
       format: 'letter',
       compress: true,
@@ -113,20 +141,18 @@ export async function exportDocumentToPdf(
     const pdfWidth = isLandscape ? 279.4 : 215.9;
     const pdfHeight = isLandscape ? 215.9 : 279.4;
 
-    // 5. Draw Full-Bleed Security Paper Background (Carta size)
-    if (isGreenSecurityPaper) {
-      if (securityBgDataUrl) {
-        // Official security paper image fills the entire Carta sheet seamlessly
-        pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-      }
+    // 5. Draw Full-Bleed Security Paper Background (Carta size) or Clean Canvas
+    if (!isPhysicalPaperMode && isGreenSecurityPaper && securityBgDataUrl) {
+      // Official security paper image fills the entire Carta sheet seamlessly for digital viewing
+      pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
     } else {
-      // Clean white paper
+      // Clean white paper - ready to be printed directly onto pre-printed official physical security paper!
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
     }
 
     // 6. Calculate dimensions and margins for document content
-    const margin = customMargin;
+    const margin = effectiveMargin;
     const availableWidth = pdfWidth - margin * 2;
     const availableHeight = pdfHeight - margin * 2;
 
@@ -151,8 +177,19 @@ export async function exportDocumentToPdf(
     // 7. Overlay document content with transparent boxes
     pdf.addImage(contentPng, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
 
-    // 8. Direct browser file download
-    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    // 8. Direct browser file download with descriptive naming
+    let baseFilename = filename.replace(/\.pdf$/i, '');
+    if (isPhysicalPaperMode) {
+      if (!baseFilename.includes('PAPEL_FISICO') && !baseFilename.includes('SIN_FONDO')) {
+        baseFilename = `${baseFilename}_PARA_PAPEL_SEGURIDAD_FISICO`;
+      }
+    } else {
+      if (!baseFilename.includes('DIGITAL') && !baseFilename.includes('CON_FONDO')) {
+        baseFilename = `${baseFilename}_DIGITAL_CON_FONDO`;
+      }
+    }
+    const cleanFilename = `${baseFilename}.pdf`;
+
     const blob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -188,7 +225,7 @@ export async function exportDocumentToPdf(
 export async function exportMultiPageDocumentToPdf(
   elementIds: string[],
   filename: string,
-  isGreenSecurityPaper = false
+  isGreenSecurityPaperOrOptions: boolean | ExportPdfOptions = false
 ): Promise<boolean> {
   const elements = elementIds.map(id => document.getElementById(id)).filter((el): el is HTMLElement => el !== null);
   if (elements.length === 0) {
@@ -196,9 +233,16 @@ export async function exportMultiPageDocumentToPdf(
     return false;
   }
 
+  const options: ExportPdfOptions = typeof isGreenSecurityPaperOrOptions === 'boolean'
+    ? { isGreenSecurityPaper: isGreenSecurityPaperOrOptions }
+    : isGreenSecurityPaperOrOptions;
+
+  const isPhysicalPaperMode = options.printMode === 'physical_paper' || options.isGreenSecurityPaper === false;
+  const isGreenSecurityPaper = !isPhysicalPaperMode && (options.isGreenSecurityPaper ?? false);
+
   try {
     const pdf = new jsPDF({
-      orientation: 'portrait',
+      orientation: options.orientation ?? 'portrait',
       unit: 'mm',
       format: 'letter',
       compress: true,
@@ -206,7 +250,7 @@ export async function exportMultiPageDocumentToPdf(
 
     const pdfWidth = 215.9;
     const pdfHeight = 279.4;
-    const margin = 5;
+    const margin = options.customMargin ?? 5;
     const availableWidth = pdfWidth - margin * 2;
     const availableHeight = pdfHeight - margin * 2;
 
@@ -218,10 +262,10 @@ export async function exportMultiPageDocumentToPdf(
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
       if (i > 0) {
-        pdf.addPage('letter', 'portrait');
+        pdf.addPage('letter', options.orientation ?? 'portrait');
       }
 
-      // Draw background
+      // Draw background: Only embed background if digital mode and security paper requested
       if (isGreenSecurityPaper && securityBgDataUrl) {
         pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       } else {
@@ -287,7 +331,18 @@ export async function exportMultiPageDocumentToPdf(
       pdf.addImage(contentPng, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
     }
 
-    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    let baseFilename = filename.replace(/\.pdf$/i, '');
+    if (isPhysicalPaperMode) {
+      if (!baseFilename.includes('PAPEL_FISICO') && !baseFilename.includes('SIN_FONDO')) {
+        baseFilename = `${baseFilename}_PARA_PAPEL_SEGURIDAD_FISICO`;
+      }
+    } else if (isGreenSecurityPaper) {
+      if (!baseFilename.includes('DIGITAL') && !baseFilename.includes('CON_FONDO')) {
+        baseFilename = `${baseFilename}_DIGITAL_CON_FONDO`;
+      }
+    }
+    const cleanFilename = `${baseFilename}.pdf`;
+
     const blob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');

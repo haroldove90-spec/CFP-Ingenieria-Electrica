@@ -13,10 +13,20 @@
     color: black !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .no-print, header, aside, nav, button {
     display: none !important;
+  }
+
+  #official-peritaje-document,
+  #official-peritaje-document *,
+  #nuevo-dictamen-nom001-offscreen,
+  .print-clean-security-paper {
+    background-image: none !important;
+    box-shadow: none !important;
   }
 
   #official-peritaje-document {
@@ -26,10 +36,11 @@
     border: none !important;
     padding: 0 !important;
     margin: 0 !important;
+    background-color: transparent !important;
   }
 
   @page {
     size: letter portrait;
-    margin: 1cm;
+    margin: 0.8cm;
   }
 }
