@@ -442,3 +442,53 @@ export interface PeritoCertificado {
   observaciones?: string;
 }
 
+// ==========================================
+// MÓDULO: AGENDA DE CITAS DEL ADMINISTRADOR / PERITO
+// ==========================================
+export type AppointmentStatus = 'Programada' | 'Confirmada' | 'En curso' | 'Realizada' | 'Cancelada';
+
+export interface Appointment {
+  id: string;
+  clienteNombre: string; // Nombre del cliente
+  representante: string; // Representante
+  recomendadoPor: string; // Nombre de quien lo recomienda
+  direccionEmpresa: string; // Dirección de la empresa
+  telefonos: string; // Teléfonos (fijo / celular)
+  whatsapp: string; // WhatsApp
+  correoElectronico: string; // Correo electrónico
+  fechaCita: string; // YYYY-MM-DD
+  horaCita: string; // HH:mm (formato 24h, ej: "10:30")
+  duracionMinutos: number; // Duración estimada en minutos, ej: 60
+  tipoServicio: string; // e.g. "Dictamen Pericial NOM-001", "Revisión de Seguridad", etc.
+  motivoNotas?: string; // Notas adicionales / alcance de la inspección
+  peritoAsignado?: string; // Perito responsable asignado
+  folioDictamenRelacionado?: string; // Folio de dictamen o servicio relacionado
+  estado: AppointmentStatus;
+  recordatorioMinutos?: number; // Minutos antes para alarma/notificación (ej: 30)
+  createdAt: string;
+  updatedAt?: string;
+  esMuestra?: boolean;
+}
+
+// ==========================================
+// MÓDULO: GENERADOR DE CÓDIGOS QR PERICIALES
+// ==========================================
+export interface GeneratedQrCode {
+  id: string;
+  titulo: string;
+  clienteNombre: string;
+  folio: string;
+  claveExpediente?: string;
+  peritoNombre?: string;
+  peritoCedula?: string;
+  direccion?: string;
+  fechaEmision?: string;
+  contenidoTexto: string; // Contenido real codificado dentro del QR
+  color?: string; // Color hexadecimal, ej: "#0b192c"
+  tamano?: number; // Tamaño en píxeles, ej: 300
+  dataUrl?: string; // Imagen PNG en base64
+  svgString?: string;
+  createdAt: string;
+}
+
+

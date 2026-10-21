@@ -14,12 +14,14 @@ import {
   ClipboardList,
   Activity,
   Layers,
-  Award
+  Award,
+  Calendar
 } from 'lucide-react';
 import { UserRole } from '../types';
 
 export type ActiveTab = 
   | 'dashboard' 
+  | 'agenda'
   | 'nuevo_dictamen' 
   | 'revisiones' 
   | 'solicitud_servicios' 
@@ -40,6 +42,7 @@ interface SidebarProps {
   activeRole: UserRole;
   onLogout: () => void;
   reportsCount: number;
+  appointmentsCount?: number;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
@@ -55,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeRole,
   onLogout,
   reportsCount,
+  appointmentsCount = 0,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
@@ -69,11 +73,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null,
     },
     {
+      id: 'agenda' as ActiveTab,
+      label: 'Agenda de Citas',
+      icon: Calendar,
+      badge: appointmentsCount > 0 ? appointmentsCount.toString() : 'Citas',
+      highlight: true,
+    },
+    {
       id: 'nuevo_dictamen' as ActiveTab,
       label: 'Nuevo Dictamen',
       icon: PlusCircle,
       badge: 'Crear',
-      highlight: true,
+      highlight: false,
     },
     {
       id: 'revisiones' as ActiveTab,
@@ -127,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'verificador' as ActiveTab,
       label: 'Verificador Código / QR',
       icon: Barcode,
-      badge: 'NOM',
+      badge: 'QR',
     },
     {
       id: 'configuracion' as ActiveTab,

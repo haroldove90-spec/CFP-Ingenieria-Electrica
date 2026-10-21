@@ -397,7 +397,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
                 ¡Faltan {missingTablesCount} tablas por crear en Supabase!
               </span>
               <p className="text-[11px] text-amber-800 mt-0.5">
-                Actualmente tu base de datos solo tiene creada la tabla <code>revisiones_electricas</code>. Para que los módulos de <strong>Solicitudes, Condiciones Operativas, Evaluaciones (Pág 5-8), Mediciones (Pág 9), Diagramas Unifilares, Cédula y Certificado</strong> también guarden sus registros en Supabase, copia el script SQL de abajo y ejecútalo en el SQL Editor de tu consola de Supabase.
+                Actualmente tu base de datos tiene tablas pendientes por crear. Para que los módulos de <strong>Solicitudes, Condiciones Operativas, Evaluaciones (Pág 5-8), Mediciones (Pág 9), Diagramas Unifilares, Cédula, Certificado y Agenda de Citas</strong> también guarden sus registros en Supabase, copia el script SQL de abajo y ejecútalo en el SQL Editor de tu consola de Supabase.
               </p>
             </div>
           </div>
@@ -476,9 +476,9 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
         <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-300 text-xs text-emerald-900 flex items-start gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold block">✓ Solución aplicada para el error: column &quot;rfc&quot; of relation &quot;diagramas_unifilares&quot; does not exist</span>
+            <span className="font-bold block">✓ Script oficial multi-tabla con migraciones automáticas y Agenda de Citas</span>
             <p className="text-[11px] text-emerald-800 mt-0.5">
-              Este script actualizado contiene migraciones automáticas <code>ALTER TABLE ADD COLUMN IF NOT EXISTS</code> para todas las 8 tablas. Agrega de forma segura los campos <code>rfc</code> y <code>titularRfc</code> a <code>diagramas_unifilares</code> y actualiza los registros sin conflictos. Simplemente haz clic en <strong>&quot;Copiar Script SQL Completo&quot;</strong> y ejecútalo con <strong>RUN</strong> en tu SQL Editor de Supabase.
+              Este script actualizado contiene migraciones automáticas <code>ALTER TABLE ADD COLUMN IF NOT EXISTS</code> para las 9 tablas oficiales (incluyendo la nueva tabla <code>agenda_citas</code>). Agrega de forma segura los campos necesarios y actualiza los registros sin conflictos. Simplemente haz clic en <strong>&quot;Copiar Script SQL Completo&quot;</strong> y ejecútalo con <strong>RUN</strong> en tu SQL Editor de Supabase.
             </p>
           </div>
         </div>
@@ -493,7 +493,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
           </pre>
           <div className="absolute top-2 right-2 flex items-center gap-1.5">
             <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
-              PostgreSQL 8 Tablas
+              PostgreSQL 9 Tablas
             </span>
           </div>
         </div>

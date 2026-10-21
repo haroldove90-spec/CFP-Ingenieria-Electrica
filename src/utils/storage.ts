@@ -7,7 +7,9 @@ import {
   ElectricalMeasurementsReport,
   SingleLineDiagram,
   PeritoCedula,
-  PeritoCertificado
+  PeritoCertificado,
+  Appointment,
+  GeneratedQrCode
 } from '../types';
 import { 
   SAMPLE_DIAGRAM_DATA_URL, 
@@ -23,6 +25,8 @@ const STORAGE_KEY_ELECTRICAL_MEASUREMENTS = 'cfp_electrical_measurements';
 const STORAGE_KEY_SINGLE_LINE_DIAGRAMS = 'cfp_single_line_diagrams';
 const STORAGE_KEY_PERITO_CEDULA = 'cfp_perito_cedula';
 const STORAGE_KEY_PERITO_CERTIFICADO = 'cfp_perito_certificado';
+const STORAGE_KEY_APPOINTMENTS = 'cfp_agenda_citas';
+const STORAGE_KEY_GENERATED_QRS = 'cfp_generated_qrs';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -227,6 +231,10 @@ export function clearSampleData(): { removedCount: number; remainingCount: numbe
   const diag = getSingleLineDiagrams().filter(r => !r.esMuestra);
   localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(diag));
 
+  // Appointments
+  const citas = getAppointments().filter(r => !r.esMuestra);
+  localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(citas));
+
   return { removedCount, remainingCount: nonDemo.length };
 }
 
@@ -238,6 +246,7 @@ export function wipeAllReports(): void {
   localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify([]));
 }
 
 export function restoreSampleData(): RevisionReport[] {
@@ -250,6 +259,7 @@ export function restoreSampleData(): RevisionReport[] {
   localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(SAMPLE_SINGLE_LINE_DIAGRAMS));
   localStorage.setItem(STORAGE_KEY_PERITO_CEDULA, JSON.stringify(SAMPLE_PERITO_CEDULA));
   localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(SAMPLE_PERITO_CERTIFICADO));
+  localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(SAMPLE_APPOINTMENTS));
   return SAMPLE_REPORTS;
 }
 
@@ -512,6 +522,7 @@ export const SUPABASE_TABLES = {
   DIAGRAMAS: 'diagramas_unifilares',
   CEDULA: 'cedula_perito',
   CERTIFICADO: 'certificado_perito',
+  AGENDA: 'agenda_citas',
 } as const;
 
 export interface SupabaseTableStatus {
@@ -617,6 +628,7 @@ export async function checkAllSupabaseTables(customSettings?: SupabaseSettings):
     { name: '6. Diagramas Unifilares', tableName: 'diagramas_unifilares', description: 'Diagramas Unifilares en Tamaño Carta' },
     { name: '7. Cédula del Perito', tableName: 'cedula_perito', description: 'Cédula Profesional DGP-SEP' },
     { name: '8. Certificado de Perito', tableName: 'certificado_perito', description: 'Acreditación Oficial Pericial CFP' },
+    { name: '9. Agenda de Citas', tableName: 'agenda_citas', description: 'Citas y Visitas Técnicas de Inspección' },
   ];
 
   if (!settings.url || !settings.anonKey) {
@@ -720,9 +732,16 @@ export async function syncAllModulesToSupabase(customSettings?: SupabaseSettings
       details.push(`certificado_perito: 1 registro`);
     }
 
+    // 9. Agenda de Citas
+    const citas = getAppointments();
+    if (citas.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.AGENDA, citas, settings);
+      details.push(`agenda_citas: ${citas.length} registros`);
+    }
+
     return { 
       success: true, 
-      message: 'Todos los 8 módulos locales fueron sincronizados con Supabase.', 
+      message: 'Todos los 9 módulos locales fueron sincronizados con Supabase.', 
       details 
     };
   } catch (err: any) {
@@ -1364,4 +1383,309 @@ export function savePeritoCertificado(cert: PeritoCertificado): PeritoCertificad
   localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(toSave));
   return toSave;
 }
+
+// ==========================================
+// SAMPLE DATA & CRUD: AGENDA DE CITAS DEL PERITO / ADMIN
+// ==========================================
+export function getTodayDateString(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getOffsetDateString(daysOffset: number): string {
+  const now = new Date();
+  now.setDate(now.getDate() + daysOffset);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export const SAMPLE_APPOINTMENTS: Appointment[] = [
+  {
+    id: 'cita-001',
+    clienteNombre: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+    representante: 'Lic. Víctor Daniel Ríos Ramírez',
+    recomendadoPor: 'Ing. Héctor Sánchez Morales (CFE Distribución)',
+    direccionEmpresa: 'Juan de Baeza #600, Col. Dieciocho de Mayo, Morelia, Michoacán, C.P. 58258',
+    telefonos: '4433234075 / 4438573253',
+    whatsapp: '4438573253',
+    correoElectronico: 'victor.rios@abarrotesazteca.mx',
+    fechaCita: getTodayDateString(),
+    horaCita: '10:00',
+    duracionMinutos: 90,
+    tipoServicio: 'Dictamen Pericial NOM-001-SEDE-2012',
+    motivoNotas: 'Inspección de subestación tipo pedestal de 75 kVA, revisión de tableros de distribución y medición de resistencia de tierra.',
+    peritoAsignado: 'Ing. Israel Orozco Arias',
+    folioDictamenRelacionado: '359',
+    estado: 'Confirmada',
+    recordatorioMinutos: 30,
+    createdAt: new Date().toISOString(),
+    esMuestra: true,
+  },
+  {
+    id: 'cita-002',
+    clienteNombre: 'PLAZA COMERCIAL LAS AMÉRICAS MORELIA',
+    representante: 'Arq. Marcela Vega Sandoval',
+    recomendadoPor: 'Colegio Federal de Peritos A.C.',
+    direccionEmpresa: 'Av. Enrique Ramírez Miguel #1000, Col. Las Américas, Morelia, Michoacán',
+    telefonos: '4433145600 / 4432190876',
+    whatsapp: '4432190876',
+    correoElectronico: 'mvega@plazalamericas.com.mx',
+    fechaCita: getOffsetDateString(1),
+    horaCita: '16:00',
+    duracionMinutos: 120,
+    tipoServicio: 'Medición de Resistencia de Puesta a Tierra (SPAT)',
+    motivoNotas: 'Pruebas con telurómetro de 3 puntas en pozos de tierra perimetrales y verificación de continuidad de masas metálicas.',
+    peritoAsignado: 'Ing. Israel Orozco Arias',
+    folioDictamenRelacionado: '',
+    estado: 'Programada',
+    recordatorioMinutos: 60,
+    createdAt: new Date().toISOString(),
+    esMuestra: true,
+  },
+  {
+    id: 'cita-003',
+    clienteNombre: 'INDUSTRIA LÁCTEA DEL BAJÍO S.P.R. DE R.L.',
+    representante: 'Ing. Fernando Mendoza Cárdenas',
+    recomendadoPor: 'Cámara Nacional de la Industria de Transformación (CANACINTRA)',
+    direccionEmpresa: 'Carretera Morelia-Salamanca Km 12.5, Parque Industrial Morelia',
+    telefonos: '4432984100 / 4431876543',
+    whatsapp: '4431876543',
+    correoElectronico: 'fmendoza@lacteosdelbajio.com',
+    fechaCita: getOffsetDateString(3),
+    horaCita: '09:30',
+    duracionMinutos: 180,
+    tipoServicio: 'Levantamiento de Diagrama Unifilar y Cargas',
+    motivoNotas: 'Levantamiento técnico de subestación de 150 kVA y circuitos derivados para actualización de expediente técnico ante Protección Civil.',
+    peritoAsignado: 'Ing. Israel Orozco Arias',
+    folioDictamenRelacionado: 'EVAL-055',
+    estado: 'Programada',
+    recordatorioMinutos: 60,
+    createdAt: new Date().toISOString(),
+    esMuestra: true,
+  },
+  {
+    id: 'cita-004',
+    clienteNombre: 'GASOLINERA Y SERVICIOS EXPRESS MICHOACÁN',
+    representante: 'C.P. Roberto Guzmán Ortiz',
+    recomendadoPor: 'Ing. Roberto Calderón V.',
+    direccionEmpresa: 'Periférico Paseo de la República #4500, Morelia, Mich.',
+    telefonos: '4433159988',
+    whatsapp: '4433159988',
+    correoElectronico: 'gerencia@gasolineraexpress.mx',
+    fechaCita: getOffsetDateString(-2),
+    horaCita: '11:00',
+    duracionMinutos: 120,
+    tipoServicio: 'Evaluación de Seguridad Eléctrica en Áreas Peligrosas',
+    motivoNotas: 'Verificación de sellos a prueba de explosión, clasificación de áreas Clase I División 1 y tableros herméticos.',
+    peritoAsignado: 'Ing. Israel Orozco Arias',
+    folioDictamenRelacionado: 'COM-088',
+    estado: 'Realizada',
+    recordatorioMinutos: 30,
+    createdAt: new Date().toISOString(),
+    esMuestra: true,
+  }
+];
+
+export function getAppointments(): Appointment[] {
+  if (typeof window === 'undefined') return SAMPLE_APPOINTMENTS;
+  const hideDemo = isDemoDataHidden();
+  const raw = localStorage.getItem(STORAGE_KEY_APPOINTMENTS);
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(SAMPLE_APPOINTMENTS));
+    return SAMPLE_APPOINTMENTS;
+  }
+
+  try {
+    const list: Appointment[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_APPOINTMENTS;
+  }
+}
+
+export function saveAppointment(appointment: Appointment): Appointment[] {
+  const current = getAppointments();
+  const existsIndex = current.findIndex(a => a.id === appointment.id);
+  let updated: Appointment[];
+
+  const toSave: Appointment = {
+    ...appointment,
+    updatedAt: new Date().toISOString(),
+    esMuestra: false
+  };
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = toSave;
+  } else {
+    updated = [toSave, ...current];
+  }
+
+  // Sort by date and time
+  updated.sort((a, b) => {
+    const dtA = `${a.fechaCita}T${a.horaCita}`;
+    const dtB = `${b.fechaCita}T${b.horaCita}`;
+    return dtA.localeCompare(dtB);
+  });
+
+  localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteAppointment(id: string): Appointment[] {
+  const current = getAppointments();
+  const updated = current.filter(a => a.id !== id);
+  localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(updated));
+  return updated;
+}
+
+export function wipeAllAppointments(): void {
+  localStorage.removeItem(STORAGE_KEY_APPOINTMENTS);
+}
+
+// ==========================================
+// HELPERS DE SINCRONIZACIÓN CON CALENDARIOS & WHATSAPP
+// ==========================================
+
+export function buildGoogleCalendarUrl(appointment: Appointment): string {
+  const [y, m, d] = (appointment.fechaCita || getTodayDateString()).split('-').map(Number);
+  const [hh, mm] = (appointment.horaCita || '10:00').split(':').map(Number);
+  
+  const start = new Date(y, (m || 1) - 1, d || 1, hh || 10, mm || 0);
+  const duration = Number(appointment.duracionMinutos) || 60;
+  const end = new Date(start.getTime() + duration * 60000);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const formatGDate = (dt: Date) => 
+    `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`;
+
+  const title = `Visita Pericial CFP: ${appointment.clienteNombre} (${appointment.tipoServicio})`;
+  const details = [
+    `⚡ COLEGIO FEDERAL DE PERITOS - CITA DE INSPECCIÓN TÉCNICA`,
+    `Cliente: ${appointment.clienteNombre}`,
+    `Representante: ${appointment.representante}`,
+    `Recomendado por: ${appointment.recomendadoPor || 'Directo'}`,
+    `Teléfonos: ${appointment.telefonos}`,
+    `WhatsApp: ${appointment.whatsapp}`,
+    `Correo: ${appointment.correoElectronico}`,
+    `Servicio: ${appointment.tipoServicio}`,
+    appointment.folioDictamenRelacionado ? `Folio Dictamen: #${appointment.folioDictamenRelacionado}` : '',
+    appointment.peritoAsignado ? `Perito Asignado: ${appointment.peritoAsignado}` : '',
+    appointment.motivoNotas ? `Notas / Alcance: ${appointment.motivoNotas}` : '',
+  ].filter(Boolean).join('\n');
+
+  const location = appointment.direccionEmpresa || 'Michoacán, México';
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatGDate(start)}/${formatGDate(end)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`;
+}
+
+export function generateIcsCalendar(appointment: Appointment): string {
+  const [y, m, d] = (appointment.fechaCita || getTodayDateString()).split('-').map(Number);
+  const [hh, mm] = (appointment.horaCita || '10:00').split(':').map(Number);
+
+  const start = new Date(y, (m || 1) - 1, d || 1, hh || 10, mm || 0);
+  const duration = Number(appointment.duracionMinutos) || 60;
+  const end = new Date(start.getTime() + duration * 60000);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const formatIcsDate = (dt: Date) => 
+    `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`;
+
+  const now = formatIcsDate(new Date());
+
+  const escapeIcs = (str: string) => (str || '').replace(/[\\;,]/g, '\\$&').replace(/\n/g, '\\n');
+
+  const summary = `Visita Pericial CFP: ${appointment.clienteNombre} - ${appointment.tipoServicio}`;
+  const description = [
+    `Cliente: ${appointment.clienteNombre}`,
+    `Representante: ${appointment.representante}`,
+    `Recomendado por: ${appointment.recomendadoPor || 'Contacto directo'}`,
+    `Teléfonos: ${appointment.telefonos}`,
+    `WhatsApp: ${appointment.whatsapp}`,
+    `Correo: ${appointment.correoElectronico}`,
+    `Servicio: ${appointment.tipoServicio}`,
+    appointment.folioDictamenRelacionado ? `Folio Dictamen: #${appointment.folioDictamenRelacionado}` : '',
+    appointment.peritoAsignado ? `Perito: ${appointment.peritoAsignado}` : '',
+    appointment.motivoNotas ? `Notas: ${appointment.motivoNotas}` : '',
+  ].filter(Boolean).join('\\n');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Colegio Federal de Peritos//CFP Agenda Electrica//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:cfp-cita-${appointment.id || Date.now()}@peritos.org`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${formatIcsDate(start)}`,
+    `DTEND:${formatIcsDate(end)}`,
+    `SUMMARY:${escapeIcs(summary)}`,
+    `DESCRIPTION:${description}`,
+    `LOCATION:${escapeIcs(appointment.direccionEmpresa || 'México')}`,
+    'STATUS:CONFIRMED',
+    'BEGIN:VALARM',
+    `TRIGGER:-PT${appointment.recordatorioMinutos || 30}M`,
+    'ACTION:DISPLAY',
+    `DESCRIPTION:Recordatorio de Cita Pericial CFP: ${escapeIcs(appointment.clienteNombre)}`,
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+export function buildWhatsAppReminderUrl(appointment: Appointment): string {
+  const cleanPhone = (appointment.whatsapp || appointment.telefonos || '').replace(/[^0-9]/g, '');
+  const phone = cleanPhone.length === 10 ? `52${cleanPhone}` : cleanPhone;
+  const message = `Hola Estimado/a *${appointment.representante || appointment.clienteNombre}*, le saludamos de *Ingeniería Eléctrica CFP*.\n\nLe confirmamos su cita técnica pericial programada:\n\n📅 *Fecha:* ${appointment.fechaCita}\n⏰ *Hora:* ${appointment.horaCita} hrs (Duración estimada: ${appointment.duracionMinutos} min)\n📍 *Lugar:* ${appointment.direccionEmpresa}\n⚡ *Servicio:* ${appointment.tipoServicio}\n👨‍💼 *Perito Asignado:* ${appointment.peritoAsignado || 'Ing. Israel Orozco Arias'}\n\nQuedamos a sus órdenes para cualquier duda o cambio de horario. ¡Excelente día!`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+// ==========================================
+// CRUD: CÓDIGOS QR GENERADOS PARA DICTÁMENES
+// ==========================================
+export function getGeneratedQrCodes(): GeneratedQrCode[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(STORAGE_KEY_GENERATED_QRS);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function saveGeneratedQrCode(qr: GeneratedQrCode): GeneratedQrCode[] {
+  const current = getGeneratedQrCodes();
+  const existsIndex = current.findIndex(q => q.id === qr.id);
+  let updated: GeneratedQrCode[];
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = qr;
+  } else {
+    updated = [qr, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_GENERATED_QRS, JSON.stringify(updated));
+  return updated;
+}
+
+export function deleteGeneratedQrCode(id: string): GeneratedQrCode[] {
+  const current = getGeneratedQrCodes();
+  const updated = current.filter(q => q.id !== id);
+  localStorage.setItem(STORAGE_KEY_GENERATED_QRS, JSON.stringify(updated));
+  return updated;
+}
+
 

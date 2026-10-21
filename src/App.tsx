@@ -8,7 +8,8 @@ import {
   ElectricalMeasurementsReport,
   SingleLineDiagram,
   PeritoCedula,
-  PeritoCertificado
+  PeritoCertificado,
+  Appointment
 } from './types';
 import { 
   getActiveRole, 
@@ -41,7 +42,10 @@ import {
   getPeritoCedula,
   savePeritoCedula,
   getPeritoCertificado,
-  savePeritoCertificado
+  savePeritoCertificado,
+  getAppointments,
+  saveAppointment,
+  deleteAppointment
 } from './utils/storage';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { RoleSelector } from './components/RoleSelector';
@@ -49,6 +53,7 @@ import { Header } from './components/Header';
 import { Sidebar, ActiveTab } from './components/Sidebar';
 import { BottomBar } from './components/BottomBar';
 import { DashboardOverview } from './components/DashboardOverview';
+import { AgendaModule } from './components/AgendaModule';
 import { RevisionModule } from './components/RevisionModule';
 import { ServiceRequestModule } from './components/ServiceRequestModule';
 import { OperatingConditionsModule } from './components/OperatingConditionsModule';
@@ -81,6 +86,7 @@ export default function App() {
   const [diagrams, setDiagrams] = useState<SingleLineDiagram[]>(() => getSingleLineDiagrams());
   const [cedula, setCedula] = useState<PeritoCedula>(() => getPeritoCedula());
   const [certificado, setCertificado] = useState<PeritoCertificado>(() => getPeritoCertificado());
+  const [appointments, setAppointments] = useState<Appointment[]>(() => getAppointments());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
@@ -98,6 +104,7 @@ export default function App() {
     setDiagrams(getSingleLineDiagrams());
     setCedula(getPeritoCedula());
     setCertificado(getPeritoCertificado());
+    setAppointments(getAppointments());
   };
 
   const handleSelectRole = (role: UserRole) => {
@@ -222,6 +229,19 @@ export default function App() {
     syncRecordToSupabaseTable(SUPABASE_TABLES.CERTIFICADO, newCert).catch(console.error);
   };
 
+  // Agenda de Citas del Perito / Admin
+  const handleSaveAppointment = (appointment: Appointment) => {
+    const updated = saveAppointment(appointment);
+    setAppointments(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.AGENDA, appointment).catch(console.error);
+  };
+
+  const handleDeleteAppointment = (id: string) => {
+    const updated = deleteAppointment(id);
+    setAppointments(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.AGENDA, [id]).catch(console.error);
+  };
+
   // If no role is selected, show exclusively the RoleSelector
   if (!activeRole) {
     return <RoleSelector onSelectRole={handleSelectRole} />;
@@ -253,6 +273,7 @@ export default function App() {
           activeRole={activeRole}
           onLogout={handleLogout}
           reportsCount={reports.length}
+          appointmentsCount={appointments.length}
           serviceRequestsCount={serviceRequests.length}
           operatingConditionsCount={operatingConditions.length}
           safetyEvaluationsCount={safetyEvaluations.length}
@@ -268,11 +289,22 @@ export default function App() {
               activeRole={activeRole}
               onNavigate={(tab) => setCurrentTab(tab)}
               onOpenDataModal={() => setIsDataModalOpen(true)}
+              appointmentsCount={appointments.length}
               serviceRequestsCount={serviceRequests.length}
               operatingConditionsCount={operatingConditions.length}
               safetyEvaluationsCount={safetyEvaluations.length}
               electricalMeasurementsCount={electricalMeasurements.length}
               diagramsCount={diagrams.length}
+            />
+          )}
+
+          {currentTab === 'agenda' && (
+            <AgendaModule
+              appointments={appointments}
+              reports={reports}
+              activeRole={activeRole}
+              onSaveAppointment={handleSaveAppointment}
+              onDeleteAppointment={handleDeleteAppointment}
             />
           )}
 
@@ -386,6 +418,7 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         reportsCount={reports.length}
+        appointmentsCount={appointments.length}
         serviceRequestsCount={serviceRequests.length}
         operatingConditionsCount={operatingConditions.length}
         safetyEvaluationsCount={safetyEvaluations.length}

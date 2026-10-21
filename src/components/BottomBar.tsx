@@ -1,11 +1,12 @@
 import React from 'react';
-import { LayoutDashboard, FileCheck2, PlusCircle, ClipboardList, Wrench, ShieldCheck, Activity } from 'lucide-react';
+import { LayoutDashboard, FileCheck2, PlusCircle, ClipboardList, Wrench, ShieldCheck, Activity, Calendar } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface BottomBarProps {
   currentTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
   reportsCount: number;
+  appointmentsCount?: number;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
   safetyEvaluationsCount?: number;
@@ -17,6 +18,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   currentTab,
   onSelectTab,
   reportsCount,
+  appointmentsCount = 0,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
   safetyEvaluationsCount = 0,
@@ -28,6 +30,12 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       id: 'dashboard' as ActiveTab,
       label: 'Inicio',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'agenda' as ActiveTab,
+      label: 'Agenda',
+      icon: Calendar,
+      badge: appointmentsCount,
     },
     {
       id: 'solicitud_servicios' as ActiveTab,
@@ -46,12 +54,6 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       label: 'Pág 5-8',
       icon: ShieldCheck,
       badge: safetyEvaluationsCount,
-    },
-    {
-      id: 'mediciones_electricas' as ActiveTab,
-      label: 'Pág 9',
-      icon: Activity,
-      badge: electricalMeasurementsCount,
     },
     {
       id: 'revisiones' as ActiveTab,

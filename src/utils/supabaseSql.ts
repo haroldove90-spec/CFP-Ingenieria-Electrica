@@ -2,7 +2,7 @@
  * Script SQL Completo para Supabase (PostgreSQL)
  * Proyecto: are.com's Project (ID: ggxliydxwcylilanitzk)
  * 
- * Contiene la definición y migraciones idempotentes de las 8 tablas oficiales del sistema CFP:
+ * Contiene la definición y migraciones idempotentes de las 9 tablas oficiales del sistema CFP:
  * 1. revisiones_electricas (Dictámenes / Revisiones Principales NOM-001)
  * 2. solicitudes_servicio (Solicitudes de Servicios Eléctricos)
  * 3. condiciones_operativas (Condiciones Operativas de Seguridad NOM-001)
@@ -11,12 +11,13 @@
  * 6. diagramas_unifilares (Diagrama Unifilar General en Tamaño Carta - Soporta titularRfc y rfc)
  * 7. cedula_perito (Cédula Profesional del Perito Dictaminador)
  * 8. certificado_perito (Certificado de Acreditación como Perito Dictaminador CFP)
+ * 9. agenda_citas (Agenda de Citas Técnicas, Sincronización y Notificaciones)
  */
 
 export const SUPABASE_SQL_SCHEMA = `-- ==============================================================
 -- COLEGIO FEDERAL DE PERITOS (CFP) • SISTEMA DE INGENIERÍA ELÉCTRICA
 -- PROYECTO SUPABASE: are.com's Project (ID: ggxliydxwcylilanitzk)
--- SCRIPT INTEGRAL DE 8 TABLAS: MIGRACIÓN & DATOS DE MUESTRA NOM-001-SEDE-2012
+-- SCRIPT INTEGRAL DE 9 TABLAS: MIGRACIÓN & DATOS DE MUESTRA NOM-001-SEDE-2012
 -- Compatible con migraciones previas (Corrige error: column "rfc" does not exist)
 -- ==============================================================
 
@@ -457,6 +458,52 @@ CREATE POLICY "Acceso público completo certificado" ON public.certificado_perit
 GRANT ALL ON TABLE public.certificado_perito TO anon, authenticated, service_role;
 
 -- ==============================================================
+-- TABLA 9: AGENDA DE CITAS Y VISITAS TÉCNICAS PERICIALES
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.agenda_citas (
+  id TEXT PRIMARY KEY,
+  clienteNombre TEXT NOT NULL,
+  representante TEXT,
+  recomendadoPor TEXT,
+  direccionEmpresa TEXT,
+  telefonos TEXT,
+  whatsapp TEXT,
+  correoElectronico TEXT,
+  fechaCita TEXT NOT NULL,
+  horaCita TEXT NOT NULL,
+  duracionMinutos NUMERIC DEFAULT 60,
+  tipoServicio TEXT,
+  motivoNotas TEXT,
+  peritoAsignado TEXT,
+  folioDictamenRelacionado TEXT,
+  estado TEXT DEFAULT 'Programada',
+  recordatorioMinutos NUMERIC DEFAULT 30,
+  esMuestra BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Migraciones automáticas Tabla 9
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS representante TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS recomendadoPor TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS direccionEmpresa TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS telefonos TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS correoElectronico TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS duracionMinutos NUMERIC DEFAULT 60;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS folioDictamenRelacionado TEXT;
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'Programada';
+ALTER TABLE public.agenda_citas ADD COLUMN IF NOT EXISTS recordatorioMinutos NUMERIC DEFAULT 30;
+
+CREATE INDEX IF NOT EXISTS idx_agenda_citas_fecha ON public.agenda_citas(fechaCita);
+CREATE INDEX IF NOT EXISTS idx_agenda_citas_estado ON public.agenda_citas(estado);
+
+ALTER TABLE public.agenda_citas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Acceso público completo agenda" ON public.agenda_citas;
+CREATE POLICY "Acceso público completo agenda" ON public.agenda_citas FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE public.agenda_citas TO anon, authenticated, service_role;
+
+-- ==============================================================
 -- DATOS INICIALES DE MUESTRA (NOM-001-SEDE-2012 Y EJEMPLOS REALES)
 -- ==============================================================
 
@@ -601,4 +648,31 @@ INSERT INTO public.certificado_perito (
   'Certificación vigente para la firma, evaluación y emisión de dictámenes técnicos periciales.'
 ) ON CONFLICT (id) DO UPDATE SET
   tituloCertificado = EXCLUDED.tituloCertificado;
+
+-- 8. Citas iniciales de la agenda técnica
+INSERT INTO public.agenda_citas (
+  id, clienteNombre, representante, recomendadoPor, direccionEmpresa, telefonos, whatsapp,
+  correoElectronico, fechaCita, horaCita, duracionMinutos, tipoServicio, motivoNotas,
+  peritoAsignado, folioDictamenRelacionado, estado, recordatorioMinutos, esMuestra
+) VALUES (
+  'cita-001', 'ABARROTES AZTECA TIJERAS S.A DE C.V', 'Lic. Víctor Daniel Ríos Ramírez',
+  'Ing. Héctor Sánchez Morales (CFE Distribución)',
+  'Juan de Baeza #600, Col. Dieciocho de Mayo, Morelia, Michoacán, C.P. 58258',
+  '4433234075 / 4438573253', '4438573253', 'victor.rios@abarrotesazteca.mx',
+  '2026-10-21', '10:00', 90, 'Dictamen Pericial NOM-001-SEDE-2012',
+  'Inspección de subestación tipo pedestal de 75 kVA, revisión de tableros de distribución y medición de resistencia de tierra.',
+  'Ing. Israel Orozco Arias', '359', 'Confirmada', 30, true
+),
+(
+  'cita-002', 'PLAZA COMERCIAL LAS AMÉRICAS MORELIA', 'Arq. Marcela Vega Sandoval',
+  'Colegio Federal de Peritos A.C.',
+  'Av. Enrique Ramírez Miguel #1000, Col. Las Américas, Morelia, Michoacán',
+  '4433145600 / 4432190876', '4432190876', 'mvega@plazalamericas.com.mx',
+  '2026-10-22', '16:00', 120, 'Medición de Resistencia de Puesta a Tierra (SPAT)',
+  'Pruebas con telurómetro de 3 puntas en pozos de tierra perimetrales y verificación de continuidad de masas metálicas.',
+  'Ing. Israel Orozco Arias', '', 'Programada', 60, true
+) ON CONFLICT (id) DO UPDATE SET
+  clienteNombre = EXCLUDED.clienteNombre,
+  fechaCita = EXCLUDED.fechaCita,
+  horaCita = EXCLUDED.horaCita;
 `;
