@@ -11,6 +11,19 @@ export default defineConfig(({ command }) => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'clean-stale-pwa-dev',
+        resolveId(id: string) {
+          if (id.includes('pwa-entry-point-loaded') || id.includes('virtual:pwa')) {
+            return '\0' + id;
+          }
+        },
+        load(id: string) {
+          if (id.includes('pwa-entry-point-loaded') || id.includes('virtual:pwa')) {
+            return 'export default function registerDevSW() {}; export const registerSW = () => () => {};';
+          }
+        },
+      },
       ...(isBuild
         ? [
             VitePWA({

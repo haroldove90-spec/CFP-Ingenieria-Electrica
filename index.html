@@ -27,8 +27,9 @@
                  str.includes('WebSocket') ||
                  str.includes('HMRClient') ||
                  str.includes('pwa-entry-point-loaded') ||
-                 str.includes('vite-plugin-pwa:dev-ready');
+                 str.includes('vite-plugin-pwa');
         }
+
         window.addEventListener('error', function(event) {
           if (isHmrError(event.error) || isHmrError(event.message)) {
             event.stopImmediatePropagation();
@@ -36,12 +37,41 @@
             return true;
           }
         }, true);
+
         window.addEventListener('unhandledrejection', function(event) {
           if (isHmrError(event.reason)) {
             event.stopImmediatePropagation();
             event.preventDefault();
           }
         }, true);
+
+        // Auto-remove any Vite error overlay that was caused by disabled HMR websocket
+        try {
+          var observer = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+              var added = mutations[i].addedNodes;
+              for (var j = 0; j < added.length; j++) {
+                var node = added[j];
+                if (node && (node.tagName === 'VITE-ERROR-OVERLAY' || (node.nodeName && node.nodeName.toUpperCase() === 'VITE-ERROR-OVERLAY'))) {
+                  var text = (node.shadowRoot ? node.shadowRoot.textContent : node.textContent) || '';
+                  if (isHmrError(text)) {
+                    node.remove();
+                  }
+                }
+              }
+            }
+          });
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        } catch (_) {}
+
+        // Proactively unregister any development service workers previously registered in browser
+        if ('serviceWorker' in navigator && window.location.hostname !== '') {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var k = 0; k < regs.length; k++) {
+              regs[k].unregister();
+            }
+          }).catch(function() {});
+        }
       })();
     </script>
   </head>
