@@ -20,6 +20,9 @@ import {
   saveReportToSupabase,
   deleteReportsFromSupabase,
   getSupabaseSettings,
+  SUPABASE_TABLES,
+  syncRecordToSupabaseTable,
+  deleteRecordsFromSupabaseTable,
   getServiceRequests,
   saveServiceRequest,
   deleteServiceRequest,
@@ -144,67 +147,79 @@ export default function App() {
   const handleSaveServiceRequest = (req: ServiceRequest) => {
     const updated = saveServiceRequest(req);
     setServiceRequests(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.SOLICITUDES, req).catch(console.error);
   };
 
   const handleDeleteServiceRequest = (id: string) => {
     const updated = deleteServiceRequest(id);
     setServiceRequests(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.SOLICITUDES, [id]).catch(console.error);
   };
 
   // Operating Conditions CRUD
   const handleSaveOperatingConditions = (rep: OperatingConditionsReport) => {
     const updated = saveOperatingConditionsReport(rep);
     setOperatingConditions(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.CONDICIONES, rep).catch(console.error);
   };
 
   const handleDeleteOperatingConditions = (id: string) => {
     const updated = deleteOperatingConditionsReport(id);
     setOperatingConditions(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.CONDICIONES, [id]).catch(console.error);
   };
 
   // Safety Evaluations CRUD
   const handleSaveSafetyEvaluation = (rep: SafetyEvaluationReport) => {
     const updated = saveSafetyEvaluation(rep);
     setSafetyEvaluations(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.EVALUACIONES, rep).catch(console.error);
   };
 
   const handleDeleteSafetyEvaluation = (id: string) => {
     const updated = deleteSafetyEvaluation(id);
     setSafetyEvaluations(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.EVALUACIONES, [id]).catch(console.error);
   };
 
   // Electrical Measurements (Página 9) CRUD
   const handleSaveElectricalMeasurement = (rep: ElectricalMeasurementsReport) => {
     const updated = saveElectricalMeasurement(rep);
     setElectricalMeasurements(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.MEDICIONES, rep).catch(console.error);
   };
 
   const handleDeleteElectricalMeasurement = (id: string) => {
     const updated = deleteElectricalMeasurement(id);
     setElectricalMeasurements(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.MEDICIONES, [id]).catch(console.error);
   };
 
   // Diagrama Unifilar CRUD
   const handleSaveDiagram = (diag: SingleLineDiagram) => {
     const updated = saveSingleLineDiagram(diag);
     setDiagrams(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.DIAGRAMAS, diag).catch(console.error);
   };
 
   const handleDeleteDiagram = (id: string) => {
     const updated = deleteSingleLineDiagram(id);
     setDiagrams(updated);
+    deleteRecordsFromSupabaseTable(SUPABASE_TABLES.DIAGRAMAS, [id]).catch(console.error);
   };
 
   // Cédula Profesional del Perito
   const handleSaveCedula = (newCedula: PeritoCedula) => {
     const updated = savePeritoCedula(newCedula);
     setCedula(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.CEDULA, newCedula).catch(console.error);
   };
 
   // Certificado como Perito Dictaminador CFP
   const handleSaveCertificado = (newCert: PeritoCertificado) => {
     const updated = savePeritoCertificado(newCert);
     setCertificado(updated);
+    syncRecordToSupabaseTable(SUPABASE_TABLES.CERTIFICADO, newCert).catch(console.error);
   };
 
   // If no role is selected, show exclusively the RoleSelector

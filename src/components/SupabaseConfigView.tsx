@@ -7,35 +7,40 @@ import {
   AlertTriangle, 
   RefreshCw, 
   Save, 
-  Database,
-  Cloud,
-  FileCheck,
-  ShieldCheck,
-  Copy,
-  Check,
-  Download,
-  ExternalLink,
-  Code2,
-  Terminal,
-  Layers,
-  Zap,
-  Info
+  Database, 
+  Cloud, 
+  FileCheck, 
+  ShieldCheck, 
+  Copy, 
+  Check, 
+  Download, 
+  ExternalLink, 
+  Code2, 
+  Terminal, 
+  Layers, 
+  Zap, 
+  Info,
+  TableProperties,
+  AlertCircle
 } from 'lucide-react';
 import { SupabaseSettings, RevisionReport } from '../types';
 import { 
   getSupabaseSettings, 
   saveSupabaseSettings, 
   wipeSupabaseRecords, 
-  syncReportsToSupabase,
-  clearSampleData,
-  restoreSampleData,
-  isDemoDataHidden,
-  setDemoDataHidden,
-  wipeAllReports,
-  testSupabaseConnection,
-  deleteReportsFromSupabase,
-  deleteRevisionReports,
-  deleteRevisionReport
+  syncReportsToSupabase, 
+  clearSampleData, 
+  restoreSampleData, 
+  isDemoDataHidden, 
+  setDemoDataHidden, 
+  wipeAllReports, 
+  testSupabaseConnection, 
+  deleteReportsFromSupabase, 
+  deleteRevisionReports, 
+  deleteRevisionReport,
+  checkAllSupabaseTables,
+  syncAllModulesToSupabase,
+  SupabaseTableStatus
 } from '../utils/storage';
 import { SUPABASE_SQL_SCHEMA } from '../utils/supabaseSql';
 
@@ -57,13 +62,26 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
   const [confirmWipeLocal, setConfirmWipeLocal] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
+  // Status of all 8 tables in Supabase
+  const [tablesStatus, setTablesStatus] = useState<SupabaseTableStatus[]>([]);
+  const [isCheckingTables, setIsCheckingTables] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
   // Direct records selection in this view
   const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
   const [isDeletingSelected, setIsDeletingSelected] = useState(false);
 
+  const fetchTablesStatus = async () => {
+    setIsCheckingTables(true);
+    const results = await checkAllSupabaseTables(config);
+    setTablesStatus(results);
+    setIsCheckingTables(false);
+  };
+
   useEffect(() => {
     setConfig(getSupabaseSettings());
     setHideDemo(isDemoDataHidden());
+    fetchTablesStatus();
   }, []);
 
   const handleCopySql = async () => {
@@ -73,12 +91,12 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
       setTimeout(() => setCopiedSql(false), 3000);
       setStatusMessage({
         type: 'success',
-        text: 'Script SQL completo copiado al portapapeles. Pégalo directamente en el SQL Editor de Supabase y haz clic en RUN.',
+        text: '¡Script SQL de las 8 tablas copiado! Pégalo en el SQL Editor de Supabase y presiona RUN.',
       });
     } catch {
       setStatusMessage({
         type: 'error',
-        text: 'No se pudo copiar automáticamente. Puedes seleccionar el texto del cuadro inferior y copiarlo con Ctrl+C.',
+        text: 'Selecciona el texto del recuadro inferior y presiona Ctrl+C para copiar.',
       });
     }
   };
@@ -88,40 +106,54 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'supabase_schema_datos_muestra_cfp.sql');
+    link.setAttribute('download', 'supabase_schema_8_tablas_cfp.sql');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setStatusMessage({
       type: 'success',
-      text: 'Archivo supabase_schema_datos_muestra_cfp.sql descargado exitosamente.',
+      text: 'Archivo supabase_schema_8_tablas_cfp.sql descargado exitosamente.',
     });
   };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
-    setStatusMessage({ type: 'info', text: 'Probando conectividad con el proyecto de Supabase...' });
+    setStatusMessage({ type: 'info', text: 'Probando conectividad y verificando tablas en Supabase...' });
     const result = await testSupabaseConnection(config);
+    await fetchTablesStatus();
     setIsTesting(false);
 
     if (result.success) {
-      if (result.tableExists) {
-        setConfig(prev => ({ ...prev, connected: true }));
-        setStatusMessage({
-          type: 'success',
-          text: '¡Conexión verificada con Supabase! La tabla `revisiones_electricas` existe y está lista para operaciones.',
-        });
-      } else {
-        setStatusMessage({
-          type: 'info',
-          text: result.message,
-        });
-      }
+      setConfig(prev => ({ ...prev, connected: true }));
+      setStatusMessage({
+        type: 'success',
+        text: result.message,
+      });
     } else {
       setStatusMessage({
         type: 'error',
         text: result.message,
+      });
+    }
+  };
+
+  const handleSyncAllModules = async () => {
+    setIsSyncingAll(true);
+    setStatusMessage({ type: 'info', text: 'Sincronizando todos los 8 módulos locales con Supabase...' });
+    const res = await syncAllModulesToSupabase(config);
+    setIsSyncingAll(false);
+    await fetchTablesStatus();
+
+    if (res.success) {
+      setStatusMessage({
+        type: 'success',
+        text: `${res.message} (${res.details.join(', ')})`,
+      });
+    } else {
+      setStatusMessage({
+        type: 'error',
+        text: res.message,
       });
     }
   };
@@ -195,6 +227,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     setStatusMessage({ type: 'info', text: 'Sincronizando registros con Supabase...' });
     const res = await syncReportsToSupabase(reports, config);
     setIsProcessing(false);
+    await fetchTablesStatus();
     if (res.success) {
       setConfig(prev => ({ ...prev, connected: true }));
       setStatusMessage({ type: 'success', text: res.message });
@@ -216,6 +249,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     const res = await wipeSupabaseRecords(config);
     setIsProcessing(false);
     setConfirmWipeSupabase(false);
+    await fetchTablesStatus();
     if (res.success) {
       setStatusMessage({ type: 'success', text: res.message });
     } else {
@@ -223,7 +257,6 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     }
   };
 
-  // Direct table row toggle
   const handleToggleSelectRow = (id: string) => {
     setSelectedRecordIds(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -246,14 +279,13 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     setIsDeletingSelected(true);
     const count = selectedRecordIds.length;
     
-    // Delete local
     deleteRevisionReports(selectedRecordIds);
-    // Delete in Supabase
     await deleteReportsFromSupabase(selectedRecordIds, config);
     
     setSelectedRecordIds([]);
     setIsDeletingSelected(false);
     onDataChanged();
+    await fetchTablesStatus();
     setStatusMessage({
       type: 'success',
       text: `Se eliminaron ${count} registro(s) exitosamente de la base de datos local y remota.`,
@@ -266,11 +298,14 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     await deleteReportsFromSupabase([report.id], config);
     setSelectedRecordIds(prev => prev.filter(id => id !== report.id));
     onDataChanged();
+    await fetchTablesStatus();
     setStatusMessage({
       type: 'success',
       text: `Folio #${report.folio} eliminado localmente y en Supabase.`,
     });
   };
+
+  const missingTablesCount = tablesStatus.filter(t => !t.exists).length;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -287,23 +322,32 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
                 Supabase & Gestión de Base de Datos
               </h2>
               <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-2 py-0.5 rounded-full border border-cyan-500/30">
-                PostgreSQL
+                PostgreSQL Cloud
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Proyecto: <span className="text-cyan-300 font-bold">{config.projectName || "are.com's Project"}</span> (ID: <span className="font-mono text-slate-300">{config.projectId || 'ggxliydxwcylilanitzk'}</span>)
+              Proyecto: <span className="text-cyan-300 font-bold">{config.projectName || "are.com's Project"}</span> • ID: <span className="font-mono text-slate-300">{config.projectId || 'ggxliydxwcylilanitzk'}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center">
+        <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
           <button
-            onClick={handleTestConnection}
-            disabled={isTesting}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-xl text-xs transition cursor-pointer border border-cyan-500/30"
+            onClick={fetchTablesStatus}
+            disabled={isCheckingTables}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition cursor-pointer border border-slate-700"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-            <span>Probar Conexión</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingTables ? 'animate-spin' : ''}`} />
+            <span>Verificar Tablas</span>
+          </button>
+
+          <button
+            onClick={handleSyncAllModules}
+            disabled={isSyncingAll}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-spin' : ''}`} />
+            <span>Sincronizar Todos los Módulos</span>
           </button>
         </div>
       </div>
@@ -333,24 +377,154 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 1: Configuración de Conexión a Supabase */}
+      {/* SECTION 1: ESTADO EN VIVO DE LAS 8 TABLAS EN SUPABASE */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-            <Cloud className="w-4 h-4 text-cyan-600" />
-            <span>Credenciales y Conexión de Supabase</span>
+            <TableProperties className="w-4 h-4 text-cyan-600" />
+            <span>Estado en Tiempo Real de las 8 Tablas en Supabase</span>
           </div>
+          <span className="text-xs text-slate-500 font-medium">
+            {tablesStatus.filter(t => t.exists).length} de 8 tablas creadas en la nube
+          </span>
+        </div>
+
+        {missingTablesCount > 0 && (
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block">
+                ¡Faltan {missingTablesCount} tablas por crear en Supabase!
+              </span>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                Actualmente tu base de datos solo tiene creada la tabla <code>revisiones_electricas</code>. Para que los módulos de <strong>Solicitudes, Condiciones Operativas, Evaluaciones (Pág 5-8), Mediciones (Pág 9), Diagramas Unifilares, Cédula y Certificado</strong> también guarden sus registros en Supabase, copia el script SQL de abajo y ejecútalo en el SQL Editor de tu consola de Supabase.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {tablesStatus.map((t) => (
+            <div 
+              key={t.tableName}
+              className={`p-3 rounded-xl border flex flex-col justify-between transition ${
+                t.exists 
+                  ? 'bg-emerald-50/50 border-emerald-200 text-slate-800' 
+                  : 'bg-rose-50/50 border-rose-200 text-slate-800'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-bold text-xs truncate" title={t.name}>{t.name}</span>
+                  {t.exists ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex-shrink-0">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                      Activa
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full flex-shrink-0">
+                      Falta crear
+                    </span>
+                  )}
+                </div>
+                <div className="font-mono text-[11px] text-slate-500 truncate" title={t.tableName}>
+                  {t.tableName}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 line-clamp-1" title={t.description}>
+                  {t.description}
+                </p>
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">Registros:</span>
+                <span className="font-bold font-mono">
+                  {t.exists ? t.count : 0}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION 2: SCRIPT SQL COMPLETO LISTO PARA EJECUTAR EN SUPABASE */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+            <Terminal className="w-4 h-4 text-amber-500" />
+            <span>Script SQL Completo (Las 8 Tablas + Políticas RLS + Datos de Muestra)</span>
+          </div>
+
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              Auto-Sincronización Activa
-            </span>
+            <button
+              onClick={handleCopySql}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer shadow-sm"
+            >
+              {copiedSql ? <Check className="w-4 h-4 stroke-[3]" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedSql ? '¡Copiado!' : 'Copiar Script SQL Completo'}</span>
+            </button>
+
+            <button
+              onClick={handleDownloadSql}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-300 transition cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Descargar .sql</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-300 text-xs text-emerald-900 flex items-start gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block">✓ Solución aplicada para el error: column &quot;rfc&quot; of relation &quot;diagramas_unifilares&quot; does not exist</span>
+            <p className="text-[11px] text-emerald-800 mt-0.5">
+              Este script actualizado contiene migraciones automáticas <code>ALTER TABLE ADD COLUMN IF NOT EXISTS</code> para todas las 8 tablas. Agrega de forma segura los campos <code>rfc</code> y <code>titularRfc</code> a <code>diagramas_unifilares</code> y actualiza los registros sin conflictos. Simplemente haz clic en <strong>&quot;Copiar Script SQL Completo&quot;</strong> y ejecútalo con <strong>RUN</strong> en tu SQL Editor de Supabase.
+            </p>
           </div>
         </div>
 
         <p className="text-xs text-slate-600">
-          Los parámetros de tu proyecto de Supabase (<strong className="text-slate-800">are.com's Project</strong>) ya han sido configurados. Cada vez que crees o edites un dictamen en el sistema, se guarda automáticamente en el almacenamiento local y se envía a Supabase en tiempo real.
+          Este script crea todas las tablas faltantes, habilita los permisos de lectura y escritura para la clave anónima (RLS), y precarga los datos de muestra oficiales de cada módulo. Puedes ejecutarlo con total seguridad ya que utiliza cláusulas <code>IF NOT EXISTS</code> y no borrará tus datos existentes de <code>revisiones_electricas</code>:
         </p>
+
+        <div className="relative">
+          <pre className="p-4 bg-slate-950 text-cyan-300 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed border border-slate-800 max-h-72 select-all shadow-inner">
+{SUPABASE_SQL_SCHEMA}
+          </pre>
+          <div className="absolute top-2 right-2 flex items-center gap-1.5">
+            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
+              PostgreSQL 8 Tablas
+            </span>
+          </div>
+        </div>
+
+        <div className="p-3 bg-cyan-50 rounded-xl border border-cyan-200 text-xs text-cyan-900 flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-cyan-700 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-bold block">Pasos para ejecutarlo en Supabase:</span>
+            <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-cyan-800">
+              <li>Haz clic en el botón naranja <strong>"Copiar Script SQL Completo"</strong>.</li>
+              <li>Abre tu consola de Supabase en <strong>are.com's Project</strong> (ID: <code>ggxliydxwcylilanitzk</code>).</li>
+              <li>Entra a la sección <strong>SQL Editor</strong> en la barra lateral izquierda.</li>
+              <li>Pega el código copiado y haz clic en <strong>"RUN"</strong> (Ejecutar).</li>
+              <li>Al terminar, regresa aquí y presiona <strong>"Verificar Tablas"</strong> para comprobar que las 8 tablas quedaron activas.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 3: PARÁMETROS DE CONEXIÓN */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+            <Cloud className="w-4 h-4 text-cyan-600" />
+            <span>Configuración y Parámetros del Proyecto</span>
+          </div>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Auto-Sincronización en Tiempo Real Activa
+          </span>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
           <div>
@@ -379,7 +553,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
 
           <div>
             <label className="block text-slate-700 font-bold mb-1">
-              Tabla Principal
+              Tabla de Dictámenes
             </label>
             <input
               type="text"
@@ -404,7 +578,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
 
           <div className="sm:col-span-2 lg:col-span-3">
             <label className="block text-slate-700 font-bold mb-1">
-              Clave Anon / API Key Pública de Supabase
+              Clave Anon / API Key de Supabase
             </label>
             <input
               type="password"
@@ -416,7 +590,6 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
           </div>
         </div>
 
-        {/* Buttons Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
           <button
             onClick={handleSaveConfig}
@@ -426,104 +599,18 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
             Guardar Parámetros
           </button>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleSyncToSupabase}
-              disabled={isProcessing}
-              className="flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
-              Sincronizar Todo a Supabase ({reports.length})
-            </button>
-
-            {!confirmWipeSupabase ? (
-              <button
-                onClick={() => setConfirmWipeSupabase(true)}
-                disabled={isProcessing}
-                className="flex items-center gap-1.5 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Vaciar Tabla en Supabase
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 bg-rose-100 p-1.5 rounded-xl border border-rose-300">
-                <span className="text-xs text-rose-800 font-bold">¿Borrar todos en Supabase?</span>
-                <button
-                  onClick={handleWipeSupabaseTable}
-                  className="px-3 py-1 bg-rose-700 text-white font-bold rounded-lg text-xs"
-                >
-                  Confirmar
-                </button>
-                <button
-                  onClick={() => setConfirmWipeSupabase(false)}
-                  className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900"
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-      </div>
-
-      {/* SECTION 2: SQL Script Listo para Correr con Datos de Muestra */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-            <Terminal className="w-4 h-4 text-amber-500" />
-            <span>Script SQL para Supabase (Tabla + RLS + Datos de Muestra Oficiales)</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopySql}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer shadow-sm"
-            >
-              {copiedSql ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedSql ? '¡Copiado!' : 'Copiar Script SQL'}</span>
-            </button>
-
-            <button
-              onClick={handleDownloadSql}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-300 transition cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Descargar .sql</span>
-            </button>
-          </div>
-        </div>
-
-        <p className="text-xs text-slate-600">
-          Copia y ejecuta este script en el <strong>SQL Editor</strong> de Supabase para crear la tabla <code className="bg-slate-100 px-1 py-0.5 rounded text-amber-700 font-bold">revisiones_electricas</code>, configurar los permisos públicos (RLS) e insertar de una vez los datos de muestra iniciales (Folio 359, 360 y 361):
-        </p>
-
-        <div className="relative">
-          <pre className="p-4 bg-slate-950 text-cyan-300 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed border border-slate-800 max-h-72 select-all shadow-inner">
-{SUPABASE_SQL_SCHEMA}
-          </pre>
-          <div className="absolute top-2 right-2 flex items-center gap-1.5">
-            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
-              PostgreSQL
-            </span>
-          </div>
-        </div>
-
-        <div className="p-3 bg-cyan-50 rounded-xl border border-cyan-200 text-xs text-cyan-900 flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-cyan-700 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-bold block">Instrucciones rápidas en Supabase:</span>
-            <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-cyan-800">
-              <li>Haz clic en el botón naranja <strong>"Copiar Script SQL"</strong> de arriba.</li>
-              <li>Abre tu consola de Supabase en el proyecto <strong>are.com's Project</strong> (ID: <code>ggxliydxwcylilanitzk</code>).</li>
-              <li>Ve a la pestaña <strong>SQL Editor</strong> en la barra lateral izquierda de Supabase.</li>
-              <li>Pega el script y haz clic en <strong>"RUN"</strong> (Ejecutar).</li>
-            </ol>
-          </div>
+          <button
+            onClick={handleTestConnection}
+            disabled={isTesting}
+            className="flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
+            <span>Probar Conexión con Supabase</span>
+          </button>
         </div>
       </div>
 
-      {/* SECTION 3: Control y Borrado Selectivo / Masivo de Registros */}
+      {/* SECTION 4: GESTIÓN Y BORRADO DE REGISTROS */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
@@ -543,11 +630,6 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
           )}
         </div>
 
-        <p className="text-xs text-slate-600">
-          Puedes seleccionar uno, varios o todos los registros para borrarlos en el momento deseado. Al borrarlos aquí, se eliminarán tanto del almacenamiento local como de Supabase si está conectado:
-        </p>
-
-        {/* Table of records */}
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
@@ -630,7 +712,6 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
           </table>
         </div>
 
-        {/* Global Quick Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <button
             onClick={handleClearSample}
@@ -645,7 +726,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-300 transition cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Restaurar Muestras Oficiales (Folios 359, 360, 361)</span>
+            <span>Restaurar Muestras Oficiales</span>
           </button>
 
           {!confirmWipeLocal ? (
@@ -654,7 +735,7 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-semibold transition cursor-pointer ml-auto"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Borrar Todo el Almacenamiento Local</span>
+              <span>Borrar Almacenamiento Local</span>
             </button>
           ) : (
             <div className="flex items-center gap-2 ml-auto bg-rose-50 p-1 rounded-xl border border-rose-200">

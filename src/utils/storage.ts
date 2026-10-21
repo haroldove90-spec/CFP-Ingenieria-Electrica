@@ -501,6 +501,236 @@ export async function syncReportsToSupabase(reports: RevisionReport[], settings:
 }
 
 // ==========================================
+// SUPABASE: DEFINICIÓN DE TODAS LAS 8 TABLAS
+// ==========================================
+export const SUPABASE_TABLES = {
+  REVISIONES: 'revisiones_electricas',
+  SOLICITUDES: 'solicitudes_servicio',
+  CONDICIONES: 'condiciones_operativas',
+  EVALUACIONES: 'evaluaciones_seguridad',
+  MEDICIONES: 'mediciones_electricas',
+  DIAGRAMAS: 'diagramas_unifilares',
+  CEDULA: 'cedula_perito',
+  CERTIFICADO: 'certificado_perito',
+} as const;
+
+export interface SupabaseTableStatus {
+  name: string;
+  tableName: string;
+  exists: boolean;
+  count: number;
+  description: string;
+}
+
+export async function syncRecordToSupabaseTable(
+  tableName: string,
+  recordOrRecords: any,
+  customSettings?: SupabaseSettings
+): Promise<{ success: boolean; message: string }> {
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado' };
+  }
+
+  try {
+    const baseUrl = normalizeSupabaseUrl(settings.url);
+    const endpoint = `${baseUrl}/rest/v1/${tableName}`;
+    const rawPayload = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
+
+    // Normalize RFC and key numeric fields defensively to prevent column mismatch in PostgreSQL
+    const payload = rawPayload.map((item: any) => {
+      const copy = { ...item };
+      const commonRfc = copy.titularRfc || copy.rfc || '';
+      if (copy.titularRfc !== undefined || copy.rfc !== undefined) {
+        copy.rfc = commonRfc;
+        copy.titularRfc = commonRfc;
+      }
+      return copy;
+    });
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'apikey': settings.anonKey,
+        'Authorization': `Bearer ${settings.anonKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
+      return { success: true, message: `Registro guardado en ${tableName} correctamente.` };
+    } else {
+      const err = await response.text();
+      return { success: false, message: `Supabase (${tableName}) status ${response.status}: ${err}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error de red al sincronizar con ${tableName}: ${err.message || err}` };
+  }
+}
+
+export async function deleteRecordsFromSupabaseTable(
+  tableName: string,
+  ids: string[],
+  customSettings?: SupabaseSettings
+): Promise<{ success: boolean; message: string }> {
+  if (ids.length === 0) return { success: true, message: 'Ningún registro seleccionado' };
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado' };
+  }
+
+  try {
+    const baseUrl = normalizeSupabaseUrl(settings.url);
+    const idFilter = ids.map(id => `"${id}"`).join(',');
+    const endpoint = `${baseUrl}/rest/v1/${tableName}?id=in.(${idFilter})`;
+
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+      headers: {
+        'apikey': settings.anonKey,
+        'Authorization': `Bearer ${settings.anonKey}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (response.ok || response.status === 204 || response.status === 200) {
+      return { success: true, message: `Se eliminaron ${ids.length} registros en ${tableName}.` };
+    } else {
+      const err = await response.text();
+      return { success: false, message: `Supabase status ${response.status}: ${err}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error al eliminar en ${tableName}: ${err.message || err}` };
+  }
+}
+
+export async function checkAllSupabaseTables(customSettings?: SupabaseSettings): Promise<SupabaseTableStatus[]> {
+  const settings = customSettings || getSupabaseSettings();
+  const tables = [
+    { name: '1. Dictámenes Eléctricos', tableName: 'revisiones_electricas', description: 'Revisión y Dictámenes NOM-001' },
+    { name: '2. Solicitudes de Servicio', tableName: 'solicitudes_servicio', description: 'Solicitudes y Levantamientos' },
+    { name: '3. Condiciones Operativas', tableName: 'condiciones_operativas', description: 'Inspección de Subestación y Tierras' },
+    { name: '4. Evaluaciones de Seguridad', tableName: 'evaluaciones_seguridad', description: 'Evaluación Técnica Páginas 5-8' },
+    { name: '5. Mediciones Eléctricas', tableName: 'mediciones_electricas', description: 'Variables Eléctricas y SPAT Página 9' },
+    { name: '6. Diagramas Unifilares', tableName: 'diagramas_unifilares', description: 'Diagramas Unifilares en Tamaño Carta' },
+    { name: '7. Cédula del Perito', tableName: 'cedula_perito', description: 'Cédula Profesional DGP-SEP' },
+    { name: '8. Certificado de Perito', tableName: 'certificado_perito', description: 'Acreditación Oficial Pericial CFP' },
+  ];
+
+  if (!settings.url || !settings.anonKey) {
+    return tables.map(t => ({ ...t, exists: false, count: 0 }));
+  }
+
+  const baseUrl = normalizeSupabaseUrl(settings.url);
+
+  const results = await Promise.all(
+    tables.map(async (t) => {
+      try {
+        const endpoint = `${baseUrl}/rest/v1/${t.tableName}?select=count`;
+        const res = await fetch(endpoint, {
+          method: 'HEAD',
+          headers: {
+            'apikey': settings.anonKey,
+            'Authorization': `Bearer ${settings.anonKey}`,
+            'Prefer': 'count=exact'
+          }
+        });
+
+        if (res.ok) {
+          const contentRange = res.headers.get('content-range');
+          let count = 0;
+          if (contentRange) {
+            const parts = contentRange.split('/');
+            if (parts[1]) count = parseInt(parts[1], 10) || 0;
+          }
+          return { ...t, exists: true, count };
+        } else {
+          return { ...t, exists: false, count: 0 };
+        }
+      } catch {
+        return { ...t, exists: false, count: 0 };
+      }
+    })
+  );
+
+  return results;
+}
+
+export async function syncAllModulesToSupabase(customSettings?: SupabaseSettings): Promise<{ success: boolean; message: string; details: string[] }> {
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado.', details: [] };
+  }
+
+  const details: string[] = [];
+  try {
+    // 1. Revisiones
+    const rev = getRevisionReports();
+    await syncReportsToSupabase(rev, settings);
+    details.push(`revisiones_electricas: ${rev.length} registros`);
+
+    // 2. Solicitudes
+    const sol = getServiceRequests();
+    if (sol.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.SOLICITUDES, sol, settings);
+      details.push(`solicitudes_servicio: ${sol.length} registros`);
+    }
+
+    // 3. Condiciones
+    const cond = getOperatingConditionsReports();
+    if (cond.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.CONDICIONES, cond, settings);
+      details.push(`condiciones_operativas: ${cond.length} registros`);
+    }
+
+    // 4. Evaluaciones
+    const evalReport = getSafetyEvaluations();
+    if (evalReport.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.EVALUACIONES, evalReport, settings);
+      details.push(`evaluaciones_seguridad: ${evalReport.length} registros`);
+    }
+
+    // 5. Mediciones
+    const med = getElectricalMeasurements();
+    if (med.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.MEDICIONES, med, settings);
+      details.push(`mediciones_electricas: ${med.length} registros`);
+    }
+
+    // 6. Diagramas
+    const diag = getSingleLineDiagrams();
+    if (diag.length > 0) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.DIAGRAMAS, diag, settings);
+      details.push(`diagramas_unifilares: ${diag.length} registros`);
+    }
+
+    // 7. Cédula
+    const ced = getPeritoCedula();
+    if (ced) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.CEDULA, [ced], settings);
+      details.push(`cedula_perito: 1 registro`);
+    }
+
+    // 8. Certificado
+    const cert = getPeritoCertificado();
+    if (cert) {
+      await syncRecordToSupabaseTable(SUPABASE_TABLES.CERTIFICADO, [cert], settings);
+      details.push(`certificado_perito: 1 registro`);
+    }
+
+    return { 
+      success: true, 
+      message: 'Todos los 8 módulos locales fueron sincronizados con Supabase.', 
+      details 
+    };
+  } catch (err: any) {
+    return { success: false, message: `Error durante la sincronización: ${err.message || err}`, details };
+  }
+}
+
+// ==========================================
 // MÓDULO 1: SOLICITUDES DE SERVICIOS
 // ==========================================
 

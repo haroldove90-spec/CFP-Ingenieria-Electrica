@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Ingeniería Eléctrica CFP</title>
-    <meta name="description" content="Sistema integral de dictámenes periciales y revisión de instalaciones eléctricas en materia de seguridad." />
+    <meta name="description" content="Sistema integral de dictámenes periciales, inspección y revisión de instalaciones eléctricas en materia de seguridad según la NOM-001-SEDE-2012." />
     <meta property="og:title" content="Ingeniería Eléctrica CFP" />
-    <meta property="og:description" content="Sistema integral de dictámenes periciales y revisión de instalaciones eléctricas en materia de seguridad." />
+    <meta property="og:description" content="Sistema integral de dictámenes periciales, inspección y revisión de instalaciones eléctricas en materia de seguridad según la NOM-001-SEDE-2012." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#0b192c" />
@@ -17,6 +17,33 @@
     <link rel="icon" type="image/svg+xml" href="/logo-cfp.svg" />
     <link rel="apple-touch-icon" href="/logo-cfp.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // Gracefully prevent Vite HMR / WebSocket client errors from triggering the dev overlay
+      (function() {
+        function isHmrError(err) {
+          if (!err) return false;
+          var str = (typeof err === 'string' ? err : (err.message || '') + ' ' + (err.stack || ''));
+          return str.includes("reading 'send'") ||
+                 str.includes('WebSocket') ||
+                 str.includes('HMRClient') ||
+                 str.includes('pwa-entry-point-loaded') ||
+                 str.includes('vite-plugin-pwa:dev-ready');
+        }
+        window.addEventListener('error', function(event) {
+          if (isHmrError(event.error) || isHmrError(event.message)) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return true;
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isHmrError(event.reason)) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body class="bg-slate-100 text-slate-800 antialiased selection:bg-amber-400 selection:text-slate-900">
     <div id="root"></div>
