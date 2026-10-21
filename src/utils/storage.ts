@@ -192,6 +192,14 @@ export function deleteRevisionReport(id: string): RevisionReport[] {
   return updated;
 }
 
+export function deleteRevisionReports(ids: string[]): RevisionReport[] {
+  const current = getRevisionReports();
+  const idSet = new Set(ids);
+  const updated = current.filter(r => !idSet.has(r.id));
+  localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(updated));
+  return updated;
+}
+
 export function clearSampleData(): { removedCount: number; remainingCount: number } {
   setDemoDataHidden(true);
   const current = getRevisionReports();
@@ -260,18 +268,46 @@ export function setActiveRole(role: string | null): void {
 }
 
 // Supabase configuration storage and remote operations
+export const DEFAULT_SUPABASE_SETTINGS: SupabaseSettings = {
+  projectName: "are.com's Project",
+  projectId: 'ggxliydxwcylilanitzk',
+  url: 'https://ggxliydxwcylilanitzk.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdneGxpeWR4d2N5bGlsYW5pdHprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1NDAwOTMsImV4cCI6MjEwODExNjA5M30.v0JoPDzfG0kMNAaYMpn3hjFiEDLZxS8u8z6MVX6YdC8',
+  tableName: 'revisiones_electricas',
+  connected: false,
+};
+
+export function normalizeSupabaseUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+  let url = rawUrl.trim();
+  url = url.replace(/\/rest\/v1\/?$/, '');
+  url = url.replace(/\/+$/, '');
+  return url;
+}
+
 export function getSupabaseSettings(): SupabaseSettings {
   if (typeof window === 'undefined') {
-    return { url: '', anonKey: '', tableName: 'revisiones_electricas', connected: false };
+    return { ...DEFAULT_SUPABASE_SETTINGS };
   }
   const raw = localStorage.getItem(STORAGE_KEY_SUPABASE);
   if (!raw) {
-    return { url: '', anonKey: '', tableName: 'revisiones_electricas', connected: false };
+    // Save defaults
+    localStorage.setItem(STORAGE_KEY_SUPABASE, JSON.stringify(DEFAULT_SUPABASE_SETTINGS));
+    return { ...DEFAULT_SUPABASE_SETTINGS };
   }
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return {
+      projectName: parsed.projectName || DEFAULT_SUPABASE_SETTINGS.projectName,
+      projectId: parsed.projectId || DEFAULT_SUPABASE_SETTINGS.projectId,
+      url: parsed.url || DEFAULT_SUPABASE_SETTINGS.url,
+      anonKey: parsed.anonKey || DEFAULT_SUPABASE_SETTINGS.anonKey,
+      tableName: parsed.tableName || DEFAULT_SUPABASE_SETTINGS.tableName,
+      connected: Boolean(parsed.connected),
+      lastSync: parsed.lastSync,
+    };
   } catch {
-    return { url: '', anonKey: '', tableName: 'revisiones_electricas', connected: false };
+    return { ...DEFAULT_SUPABASE_SETTINGS };
   }
 }
 
@@ -280,13 +316,127 @@ export function saveSupabaseSettings(settings: SupabaseSettings): void {
   localStorage.setItem(STORAGE_KEY_SUPABASE, JSON.stringify(settings));
 }
 
+export async function testSupabaseConnection(settings: SupabaseSettings): Promise<{ success: boolean; tableExists: boolean; message: string }> {
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, tableExists: false, message: 'URL o Clave Anónima de Supabase vacía.' };
+  }
+  try {
+    const baseUrl = normalizeSupabaseUrl(settings.url);
+    const endpoint = `${baseUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}?select=id&limit=1`;
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'apikey': settings.anonKey,
+        'Authorization': `Bearer ${settings.anonKey}`,
+      }
+    });
+
+    if (response.ok) {
+      const updated = { ...settings, connected: true, lastSync: new Date().toISOString() };
+      saveSupabaseSettings(updated);
+      return { success: true, tableExists: true, message: '¡Conexión verificada con Supabase! La tabla existe y responde adecuadamente.' };
+    } else {
+      const errorText = await response.text();
+      if (response.status === 404 || errorText.includes('relation') || errorText.includes('does not exist')) {
+        return { 
+          success: true, 
+          tableExists: false, 
+          message: 'Conexión con Supabase alcanzada, pero la tabla aún no existe en PostgreSQL. Ejecuta el Script SQL provisto en el SQL Editor de Supabase.' 
+        };
+      }
+      return { success: false, tableExists: false, message: `Respuesta de Supabase (${response.status}): ${errorText}` };
+    }
+  } catch (err: any) {
+    return { success: false, tableExists: false, message: `Error de red al conectar con Supabase: ${err.message || err}` };
+  }
+}
+
+export async function saveReportToSupabase(
+  report: RevisionReport, 
+  customSettings?: SupabaseSettings
+): Promise<{ success: boolean; message: string }> {
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado' };
+  }
+
+  try {
+    const baseUrl = normalizeSupabaseUrl(settings.url);
+    const endpoint = `${baseUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}`;
+
+    const cleanRecord = {
+      ...report,
+      capacidadSubestacionKva: Number(report.capacidadSubestacionKva) || 0,
+      cargaInstaladaKw: Number(report.cargaInstaladaKw) || 0,
+      esMuestra: Boolean(report.esMuestra),
+    };
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'apikey': settings.anonKey,
+        'Authorization': `Bearer ${settings.anonKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([cleanRecord])
+    });
+
+    if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
+      const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
+      saveSupabaseSettings(updatedSettings);
+      return { success: true, message: `Folio #${report.folio} guardado y sincronizado en Supabase.` };
+    } else {
+      const err = await response.text();
+      return { success: false, message: `Error Supabase (${response.status}): ${err}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error de red con Supabase: ${err.message || err}` };
+  }
+}
+
+export async function deleteReportsFromSupabase(
+  ids: string[], 
+  customSettings?: SupabaseSettings
+): Promise<{ success: boolean; message: string }> {
+  if (ids.length === 0) return { success: true, message: 'Ningún registro seleccionado.' };
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado' };
+  }
+
+  try {
+    const baseUrl = normalizeSupabaseUrl(settings.url);
+    const idFilter = ids.map(id => `"${id}"`).join(',');
+    const endpoint = `${baseUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}?id=in.(${idFilter})`;
+
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+      headers: {
+        'apikey': settings.anonKey,
+        'Authorization': `Bearer ${settings.anonKey}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (response.ok || response.status === 204 || response.status === 200) {
+      return { success: true, message: `Se eliminaron ${ids.length} registro(s) en Supabase con éxito.` };
+    } else {
+      const err = await response.text();
+      return { success: false, message: `Error Supabase (${response.status}): ${err}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Error de red con Supabase: ${err.message || err}` };
+  }
+}
+
 export async function wipeSupabaseRecords(settings: SupabaseSettings): Promise<{ success: boolean; message: string }> {
   if (!settings.url || !settings.anonKey) {
     return { success: false, message: 'URL o Clave Anónima de Supabase no configurada.' };
   }
 
   try {
-    const cleanUrl = settings.url.replace(/\/+$/, '');
+    const cleanUrl = normalizeSupabaseUrl(settings.url);
     const endpoint = `${cleanUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}?id=neq.none`;
     
     const response = await fetch(endpoint, {
@@ -299,8 +449,8 @@ export async function wipeSupabaseRecords(settings: SupabaseSettings): Promise<{
       }
     });
 
-    if (response.ok || response.status === 204) {
-      return { success: true, message: 'Registros eliminados correctamente en la tabla de Supabase.' };
+    if (response.ok || response.status === 204 || response.status === 200) {
+      return { success: true, message: 'Todos los registros fueron eliminados correctamente en la tabla de Supabase.' };
     } else {
       const errorText = await response.text();
       return { success: false, message: `Supabase respondió con estado ${response.status}: ${errorText || 'Error de permisos o tabla'}` };
@@ -316,8 +466,15 @@ export async function syncReportsToSupabase(reports: RevisionReport[], settings:
   }
 
   try {
-    const cleanUrl = settings.url.replace(/\/+$/, '');
+    const cleanUrl = normalizeSupabaseUrl(settings.url);
     const endpoint = `${cleanUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}`;
+
+    const cleanReports = reports.map(r => ({
+      ...r,
+      capacidadSubestacionKva: Number(r.capacidadSubestacionKva) || 0,
+      cargaInstaladaKw: Number(r.cargaInstaladaKw) || 0,
+      esMuestra: Boolean(r.esMuestra),
+    }));
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -327,10 +484,10 @@ export async function syncReportsToSupabase(reports: RevisionReport[], settings:
         'Content-Type': 'application/json',
         'Prefer': 'resolution=merge-duplicates'
       },
-      body: JSON.stringify(reports)
+      body: JSON.stringify(cleanReports)
     });
 
-    if (response.ok || response.status === 201) {
+    if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
       const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
       saveSupabaseSettings(updatedSettings);
       return { success: true, message: `Se sincronizaron con éxito ${reports.length} informes en Supabase.` };

@@ -16,6 +16,10 @@ import {
   getRevisionReports, 
   saveRevisionReport, 
   deleteRevisionReport,
+  deleteRevisionReports,
+  saveReportToSupabase,
+  deleteReportsFromSupabase,
+  getSupabaseSettings,
   getServiceRequests,
   saveServiceRequest,
   deleteServiceRequest,
@@ -104,15 +108,36 @@ export default function App() {
     setCurrentTab('dashboard');
   };
 
-  // Revision Reports CRUD
+  // Revision Reports CRUD with automatic Supabase sync
   const handleSaveReport = (report: RevisionReport) => {
     const updated = saveRevisionReport(report);
     setReports(updated);
+
+    // Auto-save new / updated reports to Supabase
+    const settings = getSupabaseSettings();
+    if (settings.url && settings.anonKey) {
+      saveReportToSupabase(report, settings).then((res) => {
+        if (res.success) {
+          console.log(`[Supabase Sincronizado] Folio #${report.folio} persistido en la nube`);
+        } else {
+          console.warn(`[Supabase Sincronización Advertencia] ${res.message}`);
+        }
+      }).catch((err) => {
+        console.error('[Supabase Error]', err);
+      });
+    }
   };
 
   const handleDeleteReport = (id: string) => {
     const updated = deleteRevisionReport(id);
     setReports(updated);
+    deleteReportsFromSupabase([id]).catch(console.error);
+  };
+
+  const handleDeleteReports = (ids: string[]) => {
+    const updated = deleteRevisionReports(ids);
+    setReports(updated);
+    deleteReportsFromSupabase(ids).catch(console.error);
   };
 
   // Service Requests CRUD
@@ -248,6 +273,7 @@ export default function App() {
                 setCurrentTab('revisiones');
               }}
               onDeleteReport={handleDeleteReport}
+              onDeleteReports={handleDeleteReports}
             />
           )}
 
@@ -257,6 +283,7 @@ export default function App() {
               activeRole={activeRole}
               onSaveReport={handleSaveReport}
               onDeleteReport={handleDeleteReport}
+              onDeleteReports={handleDeleteReports}
             />
           )}
 

@@ -65,6 +65,8 @@ export interface SupabaseSettings {
   anonKey: string;
   tableName: string;
   connected: boolean;
+  projectId?: string;
+  projectName?: string;
   lastSync?: string;
 }
 
