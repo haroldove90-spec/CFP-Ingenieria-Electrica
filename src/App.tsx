@@ -45,7 +45,8 @@ import {
   savePeritoCertificado,
   getAppointments,
   saveAppointment,
-  deleteAppointment
+  deleteAppointment,
+  loadAllFromSupabase
 } from './utils/storage';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { RoleSelector } from './components/RoleSelector';
@@ -94,8 +95,34 @@ export default function App() {
 
   const { isInstallable, isInstalled, isIOS, triggerInstall } = usePWAInstall();
 
+  // Sincronización automática con Supabase al iniciar la aplicación
+  useEffect(() => {
+    let isMounted = true;
+    const initSync = async () => {
+      try {
+        const res = await loadAllFromSupabase();
+        if (isMounted && res.success && res.data) {
+          if (res.data.reports) setReports(res.data.reports);
+          if (res.data.serviceRequests) setServiceRequests(res.data.serviceRequests);
+          if (res.data.operatingConditions) setOperatingConditions(res.data.operatingConditions);
+          if (res.data.safetyEvaluations) setSafetyEvaluations(res.data.safetyEvaluations);
+          if (res.data.electricalMeasurements) setElectricalMeasurements(res.data.electricalMeasurements);
+          if (res.data.diagrams) setDiagrams(res.data.diagrams);
+          if (res.data.cedula) setCedula(res.data.cedula);
+          if (res.data.certificado) setCertificado(res.data.certificado);
+          if (res.data.appointments) setAppointments(res.data.appointments);
+          console.log('[Supabase Cloud Sync]', res.message);
+        }
+      } catch (err) {
+        console.warn('[Supabase Init Sync Error]', err);
+      }
+    };
+    initSync();
+    return () => { isMounted = false; };
+  }, []);
+
   // Reload data when storage changes
-  const refreshAllData = () => {
+  const refreshAllData = async () => {
     setReports(getRevisionReports());
     setServiceRequests(getServiceRequests());
     setOperatingConditions(getOperatingConditionsReports());
@@ -105,6 +132,24 @@ export default function App() {
     setCedula(getPeritoCedula());
     setCertificado(getPeritoCertificado());
     setAppointments(getAppointments());
+
+    // Cargar también cambios frescos desde Supabase
+    try {
+      const res = await loadAllFromSupabase();
+      if (res.success && res.data) {
+        if (res.data.reports) setReports(res.data.reports);
+        if (res.data.serviceRequests) setServiceRequests(res.data.serviceRequests);
+        if (res.data.operatingConditions) setOperatingConditions(res.data.operatingConditions);
+        if (res.data.safetyEvaluations) setSafetyEvaluations(res.data.safetyEvaluations);
+        if (res.data.electricalMeasurements) setElectricalMeasurements(res.data.electricalMeasurements);
+        if (res.data.diagrams) setDiagrams(res.data.diagrams);
+        if (res.data.cedula) setCedula(res.data.cedula);
+        if (res.data.certificado) setCertificado(res.data.certificado);
+        if (res.data.appointments) setAppointments(res.data.appointments);
+      }
+    } catch (e) {
+      console.warn('[Supabase Refresh Error]', e);
+    }
   };
 
   const handleSelectRole = (role: UserRole) => {

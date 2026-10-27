@@ -504,175 +504,21 @@ CREATE POLICY "Acceso público completo agenda" ON public.agenda_citas FOR ALL T
 GRANT ALL ON TABLE public.agenda_citas TO anon, authenticated, service_role;
 
 -- ==============================================================
--- DATOS INICIALES DE MUESTRA (NOM-001-SEDE-2012 Y EJEMPLOS REALES)
+-- LIMPIEZA / PURGA DE DATOS DE MUESTRA EN LAS 9 TABLAS
+-- (Elimina registros demo para que tu base de datos opere 100% limpia)
 -- ==============================================================
+DELETE FROM public.revisiones_electricas WHERE esMuestra = true OR id IN ('rep-359', 'rep-360', 'rep-361', 'rep-sample-359', 'rep-sample-360', 'rep-sample-361');
+DELETE FROM public.solicitudes_servicio WHERE esMuestra = true OR id IN ('sol-01', 'req-sample-088');
+DELETE FROM public.condiciones_operativas WHERE esMuestra = true OR id IN ('com-088', 'cond-sample-088');
+DELETE FROM public.evaluaciones_seguridad WHERE esMuestra = true OR id IN ('eval-055');
+DELETE FROM public.mediciones_electricas WHERE esMuestra = true OR id IN ('med-359', 'med-sample-359');
+DELETE FROM public.diagramas_unifilares WHERE esMuestra = true OR id IN ('diag-sample-01');
+DELETE FROM public.cedula_perito WHERE esMuestra = true OR id IN ('cedula-perito-01');
+DELETE FROM public.certificado_perito WHERE esMuestra = true OR id IN ('cert-perito-01');
+DELETE FROM public.agenda_citas WHERE esMuestra = true OR id IN ('cita-001', 'cita-002', 'cita-003', 'cita-004');
 
--- 1. Revisión Eléctrica Principal
-INSERT INTO public.revisiones_electricas (
-  id, folio, claveExpediente, fecha, tipoInstalacionPrincipal, giroInstalacion,
-  tensionSuministro, clasificacionInstalacion, clasificacionOtroDetalle, tipoServicio,
-  capacidadSubestacionKva, cargaInstaladaKw, titularNombreComercial, titularRazonSocial,
-  titularRfc, rfc, titularCalleNumero, titularColonia, titularMunicipio, titularCiudadEstado,
-  titularCodigoPostal, titularTelefono, solicitanteNombre, solicitanteTelefono,
-  peritoNombre, peritoAfiliacion, peritoCedula, peritoEmail, peritoTelefono,
-  resultadoDictamen, observaciones, vigenciaHasta, esMuestra
-) VALUES (
-  'rep-sample-359', '359', 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026', '02-oct-26',
-  'Media y Baja Tensión', 'COMERCIO AL POR MENOR DE ABARROTES, ALIMENTOS, BEBIDAS, HIELO Y TABACO',
-  '1000 V o más', 'Lugar de concentración pública', '', 'Revisión periódica',
-  75.0, 25.0, 'ABARROTES AZTECA SUC. TIJERAS', 'ABARROTES AZTECA TIJERAS S.A DE C.V',
-  'AAT170629U46', 'AAT170629U46', 'JUAN DE BAEZA #600', 'DIECIOCHO DE MAYO', 'MORELIA',
-  'MORELIA, MICHOACÁN', '58258', '4433234075', 'VICTOR DANIEL RIOS RAMIREZ', '4438573253',
-  'Ing. Israel Orozco Arias', 'CFP0125/PCIEMBT/IOA/0071/14XII20', '15240154',
-  'israel9b@hotmail.com', '4431748638', 'Favorable (Aprobado)',
-  'Evaluación técnica de cumplimiento de la NOM-001-SEDE-2012. Instalación en óptimas condiciones de seguridad.',
-  '02-oct-28', true
-) ON CONFLICT (id) DO UPDATE SET
-  titularNombreComercial = EXCLUDED.titularNombreComercial,
-  fecha = EXCLUDED.fecha;
-
--- 2. Solicitud de Servicio
-INSERT INTO public.solicitudes_servicio (
-  id, folio, fechaVisita, peritoRegistroCfp, peritoCedula, peritoTelefono, peritoEmail,
-  peritoNombre, nombreComercial, nombreRazonSocial, rfc, titularRfc, calleNumero,
-  coloniaPoblacion, municipioDelegacion, ciudadEstado, codigoPostal, telefonoInstalacion,
-  solicitanteNombre, solicitanteTelefono, esMuestra
-) VALUES (
-  'req-sample-088', '088', '19-oct-26', 'CFP0125/PCIEMBT/IOA/0071/14XII20', '15240154',
-  '4431748638', 'israel9b@hotmail.com', 'Ing. Israel Orozco Arias',
-  'ABARROTES AZTECA SUC. TIJERAS', 'ABARROTES AZTECA TIJERAS S.A DE C.V',
-  'AAT170629U46', 'AAT170629U46', 'JUAN DE BAEZA #600', 'DIECIOCHO DE MAYO', 'MORELIA',
-  'MORELIA, MICHOACÁN', '58258', '4433234075', 'VICTOR DANIEL RIOS RAMIREZ', '4438573253', true
-) ON CONFLICT (id) DO UPDATE SET
-  nombreComercial = EXCLUDED.nombreComercial;
-
--- 3. Condiciones Operativas NOM-001
-INSERT INTO public.condiciones_operativas (
-  id, folio, claveExpediente, fechaInspeccion, nombreComercial, razonSocial, rfc, titularRfc,
-  giro, calleNumero, colonia, municipio, ciudadEstado, codigoPostal, telefono, contacto,
-  tipoInstalacion, tensionOperacion, capacidadTransformadorKva, demandaMedidaKw,
-  resistenciaTierraOhms, estadoSubestacion, estadoTableros, estadoConductoresCanalizaciones,
-  estadoSistemaTierras, estadoProteccionesSobrecarga, estadoAlumbradoEmergencia,
-  programaMantenimientoVigente, ultimoMantenimientoFecha, responsableMantenimiento,
-  pruebasAislamientoMegger, pruebasTermografiaInfrarroja, limpiezaOrdenCuartoElectrico,
-  equipoProteccionPersonalYRotulacion, dictamenCondiciones, plazoCorreccionDias,
-  accionesRequeridas, notasRecomendaciones, peritoNombre, peritoAfiliacion, peritoCedula,
-  peritoTelefono, peritoEmail, esMuestra
-) VALUES (
-  'cond-sample-088', 'COM-088', 'CFP0125/COM/IOA/0088/2026', '19-oct-26',
-  'ABARROTES AZTECA SUC. TIJERAS', 'ABARROTES AZTECA TIJERAS S.A DE C.V', 'AAT170629U46', 'AAT170629U46',
-  'COMERCIO AL POR MENOR DE ABARROTES', 'JUAN DE BAEZA #600', 'DIECIOCHO DE MAYO', 'MORELIA',
-  'MORELIA, MICHOACÁN', '58258', '4433234075', 'VICTOR DANIEL RIOS RAMIREZ',
-  'Media y Baja Tensión', '13,200 V / 220-127 V', 75, 24.8, 4.8,
-  'Satisfactorio', 'Satisfactorio', 'Satisfactorio', 'Satisfactorio', 'Satisfactorio', 'Satisfactorio',
-  true, '15-ago-26', 'Ing. Israel Orozco Arias', 'Conforme', 'Sin Puntos Calientes',
-  'Excelente', 'Completo', 'Favorable (Aprobado)', 0,
-  'Continuar con el programa preventivo semestral.',
-  'La instalación cumple satisfactoriamente con los requerimientos operativos de la NOM-001-SEDE-2012.',
-  'Ing. Israel Orozco Arias', 'CFP0125/PCIEMBT/IOA/0071/14XII20', '15240154', '4431748638',
-  'israel9b@hotmail.com', true
-) ON CONFLICT (id) DO UPDATE SET
-  nombreComercial = EXCLUDED.nombreComercial;
-
--- 4. Mediciones eléctricas (Página 9)
-INSERT INTO public.mediciones_electricas (
-  id, folio, claveExpediente, fechaMedicion, nombreRazonSocial, nombreComercial, rfc, titularRfc,
-  domicilioCompleto, municipioEstado, codigoPostal, telefono, solicitante, solicitanteTelefono,
-  giro, instrumentoNombre, instrumentoMarca, instrumentoModelo, instrumentoSerie,
-  instrumentoCalibracion, tensionF1F2, tensionF2F3, tensionF3F1, tensionPromedioFF,
-  tensionF1N, tensionF2N, tensionF3N, tensionPromedioFN, tensionNT, evaluacionTension,
-  corrienteF1, corrienteF2, corrienteF3, corrienteNeutro, desbalanceCorrientePorcentaje,
-  evaluacionCorriente, potenciaActivaKw, potenciaReactivaKvar, potenciaAparenteKva,
-  factorPotenciaF1, factorPotenciaF2, factorPotenciaF3, factorPotenciaTotal,
-  capacidadSubestacionKva, porcentajeUtilizacionCapacidad, evaluacionFactorPotencia,
-  polaridadContactos, pruebaGfciDisparo, spatMetodo, spatPuntoMedicion,
-  spatResistenciaMedidaOhms, spatValorMaximoPermitidoOhms, spatDictamen, descripcionTecnica,
-  peritoNombre, peritoAfiliacion, peritoCedula, peritoTelefono, peritoEmail, esMuestra
-) VALUES (
-  'med-sample-359', '359', 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026', '02-oct-26',
-  'ABARROTES AZTECA TIJERAS S.A DE C.V', 'ABARROTES AZTECA SUC. TIJERAS', 'AAT170629U46', 'AAT170629U46',
-  'JUAN DE BAEZA #600 COL. DIECIOCHO DE MAYO', 'MORELIA, MICHOACÁN', '58258', '4433234075',
-  'VICTOR DANIEL RIOS RAMIREZ', '4438573253', 'COMERCIO AL POR MENOR DE ABARROTES, ALIMENTOS, BEBIDAS, HIELO Y TABACO',
-  'Analizador de Calidad de Energía y Multímetro TRMS', 'FLUKE', '435-II / 376 FC', 'FLK-9823412',
-  'Vigente al 15-Nov-2027', 220, 221, 219, 220.0, 127.5, 126.8, 127.2, 127.2, 1.2,
-  'Conforme NOM-001-SEDE', 68.5, 71.2, 65.8, 14.2, 4.2, 'Carga Balanceada (<10%)',
-  27.26, 13.62, 30.48, 0.89, 0.91, 0.90, 0.90, 75, 49.99, 'Aceptable CFE (>0.90)',
-  'Correcta (Fase en ranura corta, Neutro en ranura larga, Tierra conectada)',
-  'Disparo Correcto (<25ms)', 'Caída de Potencial (Método Wenner 3 Puntas)',
-  'Pozo de Tierra No. 1 - Subestación Principal', 4.8, 25, 'CUMPLE NORMATIVA (≤ 25 Ω)',
-  'Mediciones realizadas en bornes del secundario del transformador pedestal de 75 kVA y tablero general.',
-  'Ing. Israel Orozco Arias', 'CFP0125/PCIEMBT/IOA/0071/14XII20', '15240154', '4431748638',
-  'israel9b@hotmail.com', true
-) ON CONFLICT (id) DO UPDATE SET
-  nombreComercial = EXCLUDED.nombreComercial;
-
--- 5. Diagrama unifilar inicial (Suministra tanto titularRfc como rfc)
-INSERT INTO public.diagramas_unifilares (
-  id, folio, claveExpediente, titulo, fecha, titularNombreComercial, titularRazonSocial, titularRfc, rfc,
-  peritoNombre, peritoAfiliacion, peritoCedula, orientacion, ajusteModo, subestacionKva,
-  tensionPrimaria, tensionSecundaria, esMuestra
-) VALUES (
-  'diag-sample-01', '359', 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026',
-  'DIAGRAMA UNIFILAR GENERAL - SUBESTACIÓN 75 kVA Y CENTRO DE CARGA',
-  '02-oct-26', 'ABARROTES AZTECA SUC. TIJERAS', 'ABARROTES AZTECA TIJERAS S.A DE C.V',
-  'AAT170629U46', 'AAT170629U46', 'Ing. Israel Orozco Arias', 'CFP0125/PCIEMBT/IOA/0071/14XII20',
-  '15240154', 'horizontal', 'carta_completa', 75, '13.2 kV 3F-3H', '220/127 V 3F-4H', true
-) ON CONFLICT (id) DO UPDATE SET
-  titulo = EXCLUDED.titulo,
-  fecha = EXCLUDED.fecha,
-  titularNombreComercial = EXCLUDED.titularNombreComercial;
-
--- 6. Cédula profesional del perito
-INSERT INTO public.cedula_perito (
-  id, peritoNombre, numeroCedula, profesion, institucionEmisora, fechaExpedicion, curp,
-  anchoCompleto, esMuestra, observaciones
-) VALUES (
-  'cedula-perito-01', 'ING. ISRAEL OROZCO ARIAS', '15240154',
-  'INGENIERO ELECTRICISTA / ELECTROMECÁNICO', 'DIRECCIÓN GENERAL DE PROFESIONES - SEP',
-  '14-Dic-2020', 'OOAI850914HMNRR01', true, true,
-  'Cédula profesional con efectos de patente legal para ejercer la profesión y dictaminación pericial.'
-) ON CONFLICT (id) DO UPDATE SET
-  peritoNombre = EXCLUDED.peritoNombre;
-
--- 7. Certificado oficial CFP
-INSERT INTO public.certificado_perito (
-  id, tituloCertificado, colegioEmisor, peritoNombre, numeroRegistro, numeroCedula,
-  especialidad, vigencia, fechaEmision, ajusteCompleto, esMuestra, observaciones
-) VALUES (
-  'cert-perito-01',
-  'CERTIFICADO COMO PERITO DICTAMINADOR DE INSTALACIONES ELÉCTRICAS EN MEDIA Y BAJA TENSIÓN',
-  'Colegio Federal de Peritos • Acreditación y Registro Nacional Pericial',
-  'ING. ISRAEL OROZCO ARIAS', 'CFP0125/PCIEMBT/IOA/0071/14XII20', '15240154',
-  'DICTAMINADOR EN INSTALACIONES ELÉCTRICAS DE MEDIA Y BAJA TENSIÓN (NOM-001-SEDE-2012)',
-  '2026 - 2028', '14 de Diciembre de 2020', true, true,
-  'Certificación vigente para la firma, evaluación y emisión de dictámenes técnicos periciales.'
-) ON CONFLICT (id) DO UPDATE SET
-  tituloCertificado = EXCLUDED.tituloCertificado;
-
--- 8. Citas iniciales de la agenda técnica
-INSERT INTO public.agenda_citas (
-  id, clienteNombre, representante, recomendadoPor, direccionEmpresa, telefonos, whatsapp,
-  correoElectronico, fechaCita, horaCita, duracionMinutos, tipoServicio, motivoNotas,
-  peritoAsignado, folioDictamenRelacionado, estado, recordatorioMinutos, esMuestra
-) VALUES (
-  'cita-001', 'ABARROTES AZTECA TIJERAS S.A DE C.V', 'Lic. Víctor Daniel Ríos Ramírez',
-  'Ing. Héctor Sánchez Morales (CFE Distribución)',
-  'Juan de Baeza #600, Col. Dieciocho de Mayo, Morelia, Michoacán, C.P. 58258',
-  '4433234075 / 4438573253', '4438573253', 'victor.rios@abarrotesazteca.mx',
-  '2026-10-21', '10:00', 90, 'Dictamen Pericial NOM-001-SEDE-2012',
-  'Inspección de subestación tipo pedestal de 75 kVA, revisión de tableros de distribución y medición de resistencia de tierra.',
-  'Ing. Israel Orozco Arias', '359', 'Confirmada', 30, true
-),
-(
-  'cita-002', 'PLAZA COMERCIAL LAS AMÉRICAS MORELIA', 'Arq. Marcela Vega Sandoval',
-  'Colegio Federal de Peritos A.C.',
-  'Av. Enrique Ramírez Miguel #1000, Col. Las Américas, Morelia, Michoacán',
-  '4433145600 / 4432190876', '4432190876', 'mvega@plazalamericas.com.mx',
-  '2026-10-22', '16:00', 120, 'Medición de Resistencia de Puesta a Tierra (SPAT)',
-  'Pruebas con telurómetro de 3 puntas en pozos de tierra perimetrales y verificación de continuidad de masas metálicas.',
-  'Ing. Israel Orozco Arias', '', 'Programada', 60, true
-) ON CONFLICT (id) DO UPDATE SET
-  clienteNombre = EXCLUDED.clienteNombre,
-  fechaCita = EXCLUDED.fechaCita,
-  horaCita = EXCLUDED.horaCita;
+-- Permisos completos de esquema para los roles de Supabase
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 `;

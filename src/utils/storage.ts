@@ -361,83 +361,766 @@ export async function testSupabaseConnection(settings: SupabaseSettings): Promis
   }
 }
 
+// ==========================================
+// SUPABASE HELPERS: SERIALIZACIÓN Y DESERIALIZACIÓN (CASE-INSENSITIVE PARA POSTGRESQL)
+// ==========================================
+
+export const KNOWN_SAMPLE_IDS = new Set([
+  'rep-359', 'rep-360', 'rep-361',
+  'rep-sample-359', 'rep-sample-360', 'rep-sample-361',
+  'sol-01', 'req-sample-088',
+  'com-088', 'cond-sample-088',
+  'eval-055',
+  'med-359', 'med-sample-359',
+  'diag-sample-01',
+  'cedula-perito-01',
+  'cert-perito-01',
+  'cita-001', 'cita-002', 'cita-003', 'cita-004'
+]);
+
+export function isSampleRecord(id: string, esMuestra?: boolean): boolean {
+  if (esMuestra === true) return true;
+  return KNOWN_SAMPLE_IDS.has(id);
+}
+
+export function toSupabaseRow(tableName: string, data: any): any {
+  if (!data) return {};
+  const isMuestra = Boolean(data.esMuestra ?? data.esmuestra ?? isSampleRecord(data.id, data.esMuestra));
+
+  switch (tableName) {
+    case 'revisiones_electricas': {
+      const r = data as RevisionReport;
+      const commonRfc = r.titularRfc || (r as any).rfc || '';
+      return {
+        id: String(r.id),
+        folio: String(r.folio || ''),
+        claveexpediente: r.claveExpediente || '',
+        fecha: r.fecha || '',
+        tipoinstalacionprincipal: r.tipoInstalacionPrincipal || '',
+        giroinstalacion: r.giroInstalacion || '',
+        tensionsuministro: r.tensionSuministro || '',
+        clasificacioninstalacion: r.clasificacionInstalacion || '',
+        clasificacionotrodetalle: r.clasificacionOtroDetalle || '',
+        tiposervicio: r.tipoServicio || '',
+        capacidadsubestacionkva: Number(r.capacidadSubestacionKva) || 0,
+        cargainstaladakw: Number(r.cargaInstaladaKw) || 0,
+        titularnombrecomercial: r.titularNombreComercial || '',
+        titularrazonsocial: r.titularRazonSocial || '',
+        titularrfc: commonRfc,
+        rfc: commonRfc,
+        titularcallenumero: r.titularCalleNumero || '',
+        titularcolonia: r.titularColonia || '',
+        titularmunicipio: r.titularMunicipio || '',
+        titularciudadestado: r.titularCiudadEstado || '',
+        titularcodigopostal: r.titularCodigoPostal || '',
+        titulartelefono: r.titularTelefono || '',
+        solicitantenombre: r.solicitanteNombre || '',
+        solicitantetelefono: r.solicitanteTelefono || '',
+        peritonombre: r.peritoNombre || '',
+        peritoafiliacion: r.peritoAfiliacion || '',
+        peritocedula: r.peritoCedula || '',
+        peritoemail: r.peritoEmail || '',
+        peritotelefono: r.peritoTelefono || '',
+        resultadodictamen: r.resultadoDictamen || '',
+        observaciones: r.observaciones || '',
+        vigenciahasta: r.vigenciaHasta || '',
+        esmuestra: isMuestra,
+        firmadigital: r.firmaDigital || ''
+      };
+    }
+
+    case 'agenda_citas': {
+      const a = data as Appointment;
+      return {
+        id: String(a.id),
+        clientenombre: a.clienteNombre || (a as any).clientenombre || '',
+        representante: a.representante || '',
+        recomendadopor: a.recomendadoPor || (a as any).recomendadopor || '',
+        direccionempresa: a.direccionEmpresa || (a as any).direccionempresa || '',
+        telefonos: a.telefonos || '',
+        whatsapp: a.whatsapp || '',
+        correoelectronico: a.correoElectronico || (a as any).correoelectronico || '',
+        fechacita: a.fechaCita || (a as any).fechacita || '',
+        horacita: a.horaCita || (a as any).horacita || '',
+        duracionminutos: Number(a.duracionMinutos ?? (a as any).duracionminutos ?? 60),
+        tiposervicio: a.tipoServicio || (a as any).tiposervicio || '',
+        motivonotas: a.motivoNotas || (a as any).motivonotas || '',
+        peritoasignado: a.peritoAsignado || (a as any).peritoasignado || '',
+        foliodictamenrelacionado: a.folioDictamenRelacionado || (a as any).foliodictamenrelacionado || '',
+        estado: a.estado || 'Programada',
+        recordatoriominutos: Number(a.recordatorioMinutos ?? (a as any).recordatoriominutos ?? 30),
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'solicitudes_servicio': {
+      const s = data as ServiceRequest;
+      const commonRfc = s.rfc || (s as any).titularRfc || '';
+      return {
+        id: String(s.id),
+        folio: String(s.folio || ''),
+        fechavisita: s.fechaVisita || '',
+        peritoregistrocfp: s.peritoRegistroCfp || '',
+        peritocedula: s.peritoCedula || '',
+        peritotelefono: s.peritoTelefono || '',
+        peritoemail: s.peritoEmail || '',
+        peritonombre: s.peritoNombre || '',
+        nombrecomercial: s.nombreComercial || '',
+        nombrerazonsocial: s.nombreRazonSocial || '',
+        rfc: commonRfc,
+        titularrfc: commonRfc,
+        callenumero: s.calleNumero || '',
+        coloniapoblacion: s.coloniaPoblacion || '',
+        municipiodelegacion: s.municipioDelegacion || '',
+        ciudadestado: s.ciudadEstado || '',
+        codigopostal: s.codigoPostal || '',
+        telefonoinstalacion: s.telefonoInstalacion || '',
+        solicitantenombre: s.solicitanteNombre || '',
+        solicitantetelefono: s.solicitanteTelefono || '',
+        fotoreferencia: s.fotoReferencia || '',
+        evidencias: s.evidencias || [],
+        firmaperito: s.firmaPerito || '',
+        firmasolicitante: s.firmaSolicitante || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'condiciones_operativas': {
+      const c = data as OperatingConditionsReport;
+      const commonRfc = c.rfc || (c as any).titularRfc || '';
+      return {
+        id: String(c.id),
+        folio: String(c.folio || ''),
+        claveexpediente: c.claveExpediente || '',
+        fechainspeccion: c.fechaInspeccion || '',
+        nombrecomercial: c.nombreComercial || '',
+        razonsocial: c.razonSocial || '',
+        rfc: commonRfc,
+        titularrfc: commonRfc,
+        giro: c.giro || '',
+        callenumero: c.calleNumero || '',
+        colonia: c.colonia || '',
+        municipio: c.municipio || '',
+        ciudadestado: c.ciudadEstado || '',
+        codigopostal: c.codigoPostal || '',
+        telefono: c.telefono || '',
+        contacto: c.contacto || '',
+        tipoinstalacion: c.tipoInstalacion || '',
+        tensionoperacion: c.tensionOperacion || '',
+        capacidadtransformadorkva: Number(c.capacidadTransformadorKva) || 0,
+        demandamedidakw: Number(c.demandaMedidaKw) || 0,
+        resistenciatierraohms: Number(c.resistenciaTierraOhms) || 0,
+        estadosubestacion: c.estadoSubestacion || '',
+        estadotableros: c.estadoTableros || '',
+        estadoconductorescanalizaciones: c.estadoConductoresCanalizaciones || '',
+        estadosistematierras: c.estadoSistemaTierras || '',
+        estadoproteccionessobrecarga: c.estadoProteccionesSobrecarga || '',
+        estadoalumbradoemergencia: c.estadoAlumbradoEmergencia || '',
+        programamantenimientovigente: Boolean(c.programaMantenimientoVigente),
+        ultimomantenimientofecha: c.ultimoMantenimientoFecha || '',
+        responsablemantenimiento: c.responsableMantenimiento || '',
+        pruebasaislamientomegger: c.pruebasAislamientoMegger || '',
+        pruebastermografiainfrarroja: c.pruebasTermografiaInfrarroja || '',
+        limpiezaordencuartoelectrico: c.limpiezaOrdenCuartoElectrico || '',
+        equipoproteccionpersonalyrotulacion: c.equipoProteccionPersonalYRotulacion || '',
+        dictamencondiciones: c.dictamenCondiciones || '',
+        plazocorrecciondias: Number(c.plazoCorreccionDias) || 0,
+        accionesrequeridas: c.accionesRequeridas || '',
+        notasrecomendaciones: c.notasRecomendaciones || '',
+        evidencias: c.evidencias || [],
+        peritonombre: c.peritoNombre || '',
+        peritoafiliacion: c.peritoAfiliacion || '',
+        peritocedula: c.peritoCedula || '',
+        peritotelefono: c.peritoTelefono || '',
+        peritoemail: c.peritoEmail || '',
+        firmadigital: c.firmaDigital || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'evaluaciones_seguridad': {
+      const e = data as SafetyEvaluationReport;
+      const commonRfc = e.rfc || (e as any).titularRfc || '';
+      return {
+        id: String(e.id),
+        folio: String(e.folio || ''),
+        claveexpediente: e.claveExpediente || '',
+        fechaevaluacion: e.fechaEvaluacion || '',
+        razonsocial: e.razonSocial || '',
+        nombrecomercial: e.nombreComercial || '',
+        rfc: commonRfc,
+        titularrfc: commonRfc,
+        giro: e.giro || '',
+        callenumero: e.calleNumero || '',
+        colonia: e.colonia || '',
+        municipio: e.municipio || '',
+        ciudadestado: e.ciudadEstado || '',
+        codigopostal: e.codigoPostal || '',
+        telefono: e.telefono || '',
+        representantelegal: e.representanteLegal || '',
+        companiasuministradora: e.companiaSuministradora || '',
+        noserviciorpu: e.noServicioRpu || '',
+        tarifasuministro: e.tarifaSuministro || '',
+        tensionsuministro: e.tensionSuministro || '',
+        frecuenciahz: Number(e.frecuenciaHz) || 60,
+        faseshilos: e.fasesHilos || '',
+        tiposubestacion: e.tipoSubestacion || '',
+        capacidadtransformadorkva: Number(e.capacidadTransformadorKva) || 0,
+        marcanumeroserie: e.marcaNumeroSerie || '',
+        tipoenfriamiento: e.tipoEnfriamiento || '',
+        nivelestadoaceite: e.nivelEstadoAceite || '',
+        proteccionfisicacercacandado: e.proteccionFisicaCercaCandado || '',
+        electrodotierraconexion: e.electrodoTierraConexion || '',
+        resistenciatierramedidaohms: Number(e.resistenciaTierraMedidaOhms) || 0,
+        sistemapararrayosbajantes: e.sistemaPararrayosBajantes || '',
+        gabinetetiponema: e.gabineteTipoNema || '',
+        directoriocircuitosidentificado: e.directorioCircuitosIdentificado || '',
+        cubiertafrontalproteccioncontacto: e.cubiertaFrontalProteccionContacto || '',
+        espacioreservaespaciosvacios: e.espacioReservaEspaciosVacios || '',
+        interruptorprincipalcapacidada: Number(e.interruptorPrincipalCapacidadA) || 0,
+        coordinacionprotecciones: e.coordinacionProtecciones || '',
+        proteccionfallatierragfci: e.proteccionFallaTierraGfci || '',
+        estadointerruptorestermomagneticos: e.estadoInterruptoresTermomagneticos || '',
+        tipoconductoraislamiento: e.tipoConductorAislamiento || '',
+        codigocoloresnormativo: e.codigoColoresNormativo || '',
+        canalizacionestuberiascharolas: e.canalizacionesTuberiasCharolas || '',
+        factorllenadocanalizaciones: e.factorLlenadoCanalizaciones || '',
+        espaciotrabajotableros: e.espacioTrabajoTableros || '',
+        puertasaccesoescape: e.puertasAccesoEscape || '',
+        senalesadvertenciariesgoelectrico: e.senalesAdvertenciaRiesgoElectrico || '',
+        diagramaunifilaractualizado: e.diagramaUnifilarActualizado || '',
+        tapetesdielectricosaislantes: e.tapetesDielectricosAislantes || '',
+        iluminacionnormalyemergencia: e.iluminacionNormalYEmergencia || '',
+        extintortipoco2pqscercano: e.extintorTipoCo2PqsCercano || '',
+        disponibilidadeppdielectrico: e.disponibilidadEppDielectrico || '',
+        mediciontensionfasesv: e.medicionTensionFasesV || '',
+        pruebaaislamientomegger: e.pruebaAislamientoMegger || '',
+        termografiainfrarroja: e.termografiaInfrarroja || '',
+        evidencias: e.evidencias || [],
+        noconformidadesdetectadas: e.noConformidadesDetectadas || '',
+        medidascorrectivasinmediatas: e.medidasCorrectivasInmediatas || '',
+        plazosubsanaciondias: Number(e.plazoSubsanacionDias) || 0,
+        calificacionseguridad: e.calificacionSeguridad || '',
+        peritonombre: e.peritoNombre || '',
+        peritoafiliacion: e.peritoAfiliacion || '',
+        peritocedula: e.peritoCedula || '',
+        peritotelefono: e.peritoTelefono || '',
+        peritoemail: e.peritoEmail || '',
+        firmadigital: e.firmaDigital || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'mediciones_electricas': {
+      const m = data as ElectricalMeasurementsReport;
+      const commonRfc = m.rfc || (m as any).titularRfc || '';
+      return {
+        id: String(m.id),
+        folio: String(m.folio || ''),
+        claveexpediente: m.claveExpediente || '',
+        fechamedicion: m.fechaMedicion || '',
+        nombrerazonsocial: m.nombreRazonSocial || '',
+        nombrecomercial: m.nombreComercial || '',
+        rfc: commonRfc,
+        titularrfc: commonRfc,
+        domiciliocompleto: m.domicilioCompleto || '',
+        municipioestado: m.municipioEstado || '',
+        codigopostal: m.codigoPostal || '',
+        telefono: m.telefono || '',
+        solicitante: m.solicitante || '',
+        solicitantetelefono: m.solicitanteTelefono || '',
+        giro: m.giro || '',
+        instrumentonombre: m.instrumentoNombre || '',
+        instrumentomarca: m.instrumentoMarca || '',
+        instrumentomodelo: m.instrumentoModelo || '',
+        instrumentoserie: m.instrumentoSerie || '',
+        instrumentocalibracion: m.instrumentoCalibracion || '',
+        tensionf1f2: Number(m.tensionF1F2) || 0,
+        tensionf2f3: Number(m.tensionF2F3) || 0,
+        tensionf3f1: Number(m.tensionF3F1) || 0,
+        tensionpromedioff: Number(m.tensionPromedioFF) || 0,
+        tensionf1n: Number(m.tensionF1N) || 0,
+        tensionf2n: Number(m.tensionF2N) || 0,
+        tensionf3n: Number(m.tensionF3N) || 0,
+        tensionpromediofn: Number(m.tensionPromedioFN) || 0,
+        tensionnt: Number(m.tensionNT) || 0,
+        evaluaciontension: m.evaluacionTension || '',
+        corrientef1: Number(m.corrienteF1) || 0,
+        corrientef2: Number(m.corrienteF2) || 0,
+        corrientef3: Number(m.corrienteF3) || 0,
+        corrienteneutro: Number(m.corrienteNeutro) || 0,
+        desbalancecorrienteporcentaje: Number(m.desbalanceCorrientePorcentaje) || 0,
+        evaluacioncorriente: m.evaluacionCorriente || '',
+        potenciaactivakw: Number(m.potenciaActivaKw) || 0,
+        potenciareactivakvar: Number(m.potenciaReactivaKvar) || 0,
+        potenciaaparentekva: Number(m.potenciaAparenteKva) || 0,
+        factorpotenciaf1: Number(m.factorPotenciaF1) || 0,
+        factorpotenciaf2: Number(m.factorPotenciaF2) || 0,
+        factorpotenciaf3: Number(m.factorPotenciaF3) || 0,
+        factorpotenciatotal: Number(m.factorPotenciaTotal) || 0,
+        capacidadsubestacionkva: Number(m.capacidadSubestacionKva) || 0,
+        porcentajeutilizacioncapacidad: Number(m.porcentajeUtilizacionCapacidad) || 0,
+        evaluacionfactorpotencia: m.evaluacionFactorPotencia || '',
+        polaridadcontactos: m.polaridadContactos || '',
+        pruebagfcidisparo: m.pruebaGfciDisparo || '',
+        spatmetodo: m.spatMetodo || '',
+        spatpuntomedicion: m.spatPuntoMedicion || '',
+        spatresistenciamedidaohms: Number(m.spatResistenciaMedidaOhms) || 0,
+        spatvalormaximopermitidoohms: Number(m.spatValorMaximoPermitidoOhms) || 0,
+        spatdictamen: m.spatDictamen || '',
+        descripciontecnica: m.descripcionTecnica || '',
+        evidencias: m.evidencias || [],
+        peritonombre: m.peritoNombre || '',
+        peritoafiliacion: m.peritoAfiliacion || '',
+        peritocedula: m.peritoCedula || '',
+        peritotelefono: m.peritoTelefono || '',
+        peritoemail: m.peritoEmail || '',
+        firmadigital: m.firmaDigital || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'diagramas_unifilares': {
+      const d = data as SingleLineDiagram;
+      const commonRfc = d.titularRfc || (d as any).rfc || '';
+      return {
+        id: String(d.id),
+        folio: String(d.folio || ''),
+        claveexpediente: d.claveExpediente || '',
+        titulo: d.titulo || '',
+        fecha: d.fecha || '',
+        titularnombrecomercial: d.titularNombreComercial || '',
+        titularrazonsocial: d.titularRazonSocial || '',
+        titularrfc: commonRfc,
+        rfc: commonRfc,
+        titulardireccion: d.titularDireccion || '',
+        peritonombre: d.peritoNombre || '',
+        peritoafiliacion: d.peritoAfiliacion || '',
+        peritocedula: d.peritoCedula || '',
+        imagendataurl: d.imagenDataUrl || '',
+        orientacion: d.orientacion || 'horizontal',
+        ajustemodo: d.ajusteModo || 'carta_completa',
+        rotaciongrados: Number(d.rotacionGrados) || 0,
+        notastecnicas: d.notasTecnicas || '',
+        subestacionkva: Number(d.subestacionKva) || 0,
+        tensionprimaria: d.tensionPrimaria || '',
+        tensionsecundaria: d.tensionSecundaria || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'cedula_perito': {
+      const c = data as PeritoCedula;
+      return {
+        id: String(c.id),
+        peritonombre: c.peritoNombre || '',
+        numerocedula: c.numeroCedula || '',
+        profesion: c.profesion || '',
+        institucionemisora: c.institucionEmisora || '',
+        fechaexpedicion: c.fechaExpedicion || '',
+        curp: c.curp || '',
+        folioregistro: c.folioRegistro || '',
+        imagendataurl: c.imagenDataUrl || '',
+        anchocompleto: c.anchoCompleto !== undefined ? Boolean(c.anchoCompleto) : true,
+        observaciones: c.observaciones || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    case 'certificado_perito': {
+      const cp = data as PeritoCertificado;
+      return {
+        id: String(cp.id),
+        titulocertificado: cp.tituloCertificado || '',
+        colegioemisor: cp.colegioEmisor || '',
+        peritonombre: cp.peritoNombre || '',
+        numeroregistro: cp.numeroRegistro || '',
+        numerocedula: cp.numeroCedula || '',
+        especialidad: cp.especialidad || '',
+        vigencia: cp.vigencia || '',
+        fechaemision: cp.fechaEmision || '',
+        imagendataurl: cp.imagenDataUrl || '',
+        ajustecompleto: cp.ajusteCompleto !== undefined ? Boolean(cp.ajusteCompleto) : true,
+        observaciones: cp.observaciones || '',
+        esmuestra: isMuestra
+      };
+    }
+
+    default: {
+      const out: any = {};
+      for (const [k, v] of Object.entries(data)) {
+        out[k.toLowerCase()] = v;
+      }
+      return out;
+    }
+  }
+}
+
+export function fromSupabaseRow(tableName: string, row: any): any {
+  if (!row) return null;
+  const isMuestra = Boolean(row.esmuestra ?? row.esMuestra ?? isSampleRecord(row.id, row.esmuestra));
+
+  switch (tableName) {
+    case 'revisiones_electricas': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        fecha: row.fecha || '',
+        tipoInstalacionPrincipal: row.tipoinstalacionprincipal || row.tipoInstalacionPrincipal || '',
+        giroInstalacion: row.giroinstalacion || row.giroInstalacion || '',
+        tensionSuministro: row.tensionsuministro || row.tensionSuministro || '',
+        clasificacionInstalacion: row.clasificacioninstalacion || row.clasificacionInstalacion || '',
+        clasificacionOtroDetalle: row.clasificacionotrodetalle || row.clasificacionOtroDetalle || '',
+        tipoServicio: row.tiposervicio || row.tipoServicio || '',
+        capacidadSubestacionKva: Number(row.capacidadsubestacionkva ?? row.capacidadSubestacionKva ?? 0),
+        cargaInstaladaKw: Number(row.cargainstaladakw ?? row.cargaInstaladaKw ?? 0),
+        titularNombreComercial: row.titularnombrecomercial || row.titularNombreComercial || '',
+        titularRazonSocial: row.titularrazonsocial || row.titularRazonSocial || '',
+        titularRfc: row.titularrfc || row.rfc || row.titularRfc || '',
+        titularCalleNumero: row.titularcallenumero || row.titularCalleNumero || '',
+        titularColonia: row.titularcolonia || row.titularColonia || '',
+        titularMunicipio: row.titularmunicipio || row.titularMunicipio || '',
+        titularCiudadEstado: row.titularciudadestado || row.titularCiudadEstado || '',
+        titularCodigoPostal: row.titularcodigopostal || row.titularCodigoPostal || '',
+        titularTelefono: row.titulartelefono || row.titularTelefono || '',
+        solicitanteNombre: row.solicitantenombre || row.solicitanteNombre || '',
+        solicitanteTelefono: row.solicitantetelefono || row.solicitanteTelefono || '',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        resultadoDictamen: row.resultadodictamen || row.resultadoDictamen || 'Favorable (Aprobado)',
+        observaciones: row.observaciones || '',
+        vigenciaHasta: row.vigenciahasta || row.vigenciaHasta || '',
+        esMuestra: isMuestra,
+        firmaDigital: row.firmadigital || row.firmaDigital || ''
+      } as RevisionReport;
+    }
+
+    case 'agenda_citas': {
+      return {
+        id: row.id,
+        clienteNombre: row.clientenombre || row.clienteNombre || '',
+        representante: row.representante || '',
+        recomendadoPor: row.recomendadopor || row.recomendadoPor || '',
+        direccionEmpresa: row.direccionempresa || row.direccionEmpresa || '',
+        telefonos: row.telefonos || '',
+        whatsapp: row.whatsapp || '',
+        correoElectronico: row.correoelectronico || row.correoElectronico || '',
+        fechaCita: row.fechacita || row.fechaCita || '',
+        horaCita: row.horacita || row.horaCita || '',
+        duracionMinutos: Number(row.duracionminutos ?? row.duracionMinutos ?? 60),
+        tipoServicio: row.tiposervicio || row.tipoServicio || 'Dictamen Pericial NOM-001-SEDE-2012',
+        motivoNotas: row.motivonotas || row.motivoNotas || '',
+        peritoAsignado: row.peritoasignado || row.peritoAsignado || 'Ing. Israel Orozco Arias',
+        folioDictamenRelacionado: row.foliodictamenrelacionado || row.folioDictamenRelacionado || '',
+        estado: row.estado || 'Programada',
+        recordatorioMinutos: Number(row.recordatoriominutos ?? row.recordatorioMinutos ?? 30),
+        esMuestra: isMuestra,
+        createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+        updatedAt: row.updated_at || row.updatedAt || new Date().toISOString()
+      } as Appointment;
+    }
+
+    case 'solicitudes_servicio': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        fechaVisita: row.fechavisita || row.fechaVisita || '',
+        peritoRegistroCfp: row.peritoregistrocfp || row.peritoRegistroCfp || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        nombreComercial: row.nombrecomercial || row.nombreComercial || '',
+        nombreRazonSocial: row.nombrerazonsocial || row.nombreRazonSocial || '',
+        rfc: row.rfc || row.titularrfc || row.titularRfc || '',
+        calleNumero: row.callenumero || row.calleNumero || '',
+        coloniaPoblacion: row.coloniapoblacion || row.coloniaPoblacion || '',
+        municipioDelegacion: row.municipiodelegacion || row.municipioDelegacion || '',
+        ciudadEstado: row.ciudadestado || row.ciudadEstado || '',
+        codigoPostal: row.codigopostal || row.codigoPostal || '',
+        telefonoInstalacion: row.telefonoinstalacion || row.telefonoInstalacion || '',
+        solicitanteNombre: row.solicitantenombre || row.solicitanteNombre || '',
+        solicitanteTelefono: row.solicitantetelefono || row.solicitanteTelefono || '',
+        fotoReferencia: row.fotoreferencia || row.fotoReferencia || '',
+        evidencias: Array.isArray(row.evidencias) ? row.evidencias : [],
+        firmaPerito: row.firmaperito || row.firmaPerito || '',
+        firmaSolicitante: row.firmasolicitante || row.firmaSolicitante || '',
+        esMuestra: isMuestra
+      } as ServiceRequest;
+    }
+
+    case 'condiciones_operativas': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        fechaInspeccion: row.fechainspeccion || row.fechaInspeccion || '',
+        nombreComercial: row.nombrecomercial || row.nombreComercial || '',
+        razonSocial: row.razonsocial || row.razonSocial || '',
+        rfc: row.rfc || row.titularrfc || '',
+        giro: row.giro || '',
+        calleNumero: row.callenumero || row.calleNumero || '',
+        colonia: row.colonia || '',
+        municipio: row.municipio || '',
+        ciudadEstado: row.ciudadestado || row.ciudadEstado || '',
+        codigoPostal: row.codigopostal || row.codigoPostal || '',
+        telefono: row.telefono || '',
+        contacto: row.contacto || '',
+        tipoInstalacion: row.tipoinstalacion || row.tipoInstalacion || '',
+        tensionOperacion: row.tensionoperacion || row.tensionOperacion || '',
+        capacidadTransformadorKva: Number(row.capacidadtransformadorkva ?? row.capacidadTransformadorKva ?? 0),
+        demandaMedidaKw: Number(row.demandamedidakw ?? row.demandaMedidaKw ?? 0),
+        resistenciaTierraOhms: Number(row.resistenciatierraohms ?? row.resistenciaTierraOhms ?? 0),
+        estadoSubestacion: row.estadosubestacion || row.estadoSubestacion || 'Satisfactorio',
+        estadoTableros: row.estadotableros || row.estadoTableros || 'Satisfactorio',
+        estadoConductoresCanalizaciones: row.estadoconductorescanalizaciones || row.estadoConductoresCanalizaciones || 'Satisfactorio',
+        estadoSistemaTierras: row.estadosistematierras || row.estadoSistemaTierras || 'Satisfactorio',
+        estadoProteccionesSobrecarga: row.estadoproteccionessobrecarga || row.estadoProteccionesSobrecarga || 'Satisfactorio',
+        estadoAlumbradoEmergencia: row.estadoalumbradoemergencia || row.estadoAlumbradoEmergencia || 'Satisfactorio',
+        programaMantenimientoVigente: Boolean(row.programamantenimientovigente ?? row.programaMantenimientoVigente),
+        ultimoMantenimientoFecha: row.ultimomantenimientofecha || row.ultimoMantenimientoFecha || '',
+        responsableMantenimiento: row.responsablemantenimiento || row.responsableMantenimiento || '',
+        pruebasAislamientoMegger: row.pruebasaislamientomegger || row.pruebasAislamientoMegger || 'Conforme',
+        pruebasTermografiaInfrarroja: row.pruebastermografiainfrarroja || row.pruebasTermografiaInfrarroja || 'Sin Puntos Calientes',
+        limpiezaOrdenCuartoElectrico: row.limpiezaordencuartoelectrico || row.limpiezaOrdenCuartoElectrico || 'Excelente',
+        equipoProteccionPersonalYRotulacion: row.equipoproteccionpersonalyrotulacion || row.equipoProteccionPersonalYRotulacion || 'Completo',
+        dictamenCondiciones: row.dictamencondiciones || row.dictamenCondiciones || 'Condición Operativa Satisfactoria (Aprobada)',
+        plazoCorreccionDias: Number(row.plazocorrecciondias ?? row.plazoCorreccionDias ?? 0),
+        accionesRequeridas: row.accionesrequeridas || row.accionesRequeridas || '',
+        notasRecomendaciones: row.notasrecomendaciones || row.notasRecomendaciones || '',
+        evidencias: Array.isArray(row.evidencias) ? row.evidencias : [],
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        firmaDigital: row.firmadigital || row.firmaDigital || '',
+        esMuestra: isMuestra
+      } as OperatingConditionsReport;
+    }
+
+    case 'evaluaciones_seguridad': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        fechaEvaluacion: row.fechaevaluacion || row.fechaEvaluacion || '',
+        razonSocial: row.razonsocial || row.razonSocial || '',
+        nombreComercial: row.nombrecomercial || row.nombreComercial || '',
+        rfc: row.rfc || row.titularrfc || '',
+        giro: row.giro || '',
+        calleNumero: row.callenumero || row.calleNumero || '',
+        colonia: row.colonia || '',
+        municipio: row.municipio || '',
+        ciudadEstado: row.ciudadestado || row.ciudadEstado || '',
+        codigoPostal: row.codigopostal || row.codigoPostal || '',
+        telefono: row.telefono || '',
+        representanteLegal: row.representantelegal || row.representanteLegal || '',
+        companiaSuministradora: row.companiasuministradora || row.companiaSuministradora || '',
+        noServicioRpu: row.noserviciorpu || row.noServicioRpu || '',
+        tarifaSuministro: row.tarifasuministro || row.tarifaSuministro || '',
+        tensionSuministro: row.tensionsuministro || row.tensionSuministro || '',
+        frecuenciaHz: Number(row.frecuenciahz ?? row.frecuenciaHz ?? 60),
+        fasesHilos: row.faseshilos || row.fasesHilos || '',
+        tipoSubestacion: row.tiposubestacion || row.tipoSubestacion || '',
+        capacidadTransformadorKva: Number(row.capacidadtransformadorkva ?? row.capacidadTransformadorKva ?? 0),
+        marcaNumeroSerie: row.marcanumeroserie || row.marcaNumeroSerie || '',
+        tipoEnfriamiento: row.tipoenfriamiento || row.tipoEnfriamiento || '',
+        nivelEstadoAceite: row.nivelestadoaceite || row.nivelEstadoAceite || '',
+        proteccionFisicaCercaCandado: row.proteccionfisicacercacandado || row.proteccionFisicaCercaCandado || '',
+        electrodoTierraConexion: row.electrodotierraconexion || row.electrodoTierraConexion || '',
+        resistenciaTierraMedidaOhms: Number(row.resistenciatierramedidaohms ?? row.resistenciaTierraMedidaOhms ?? 0),
+        sistemaPararrayosBajantes: row.sistemapararrayosbajantes || row.sistemaPararrayosBajantes || '',
+        gabineteTipoNema: row.gabinetetiponema || row.gabineteTipoNema || '',
+        directorioCircuitosIdentificado: row.directoriocircuitosidentificado || row.directorioCircuitosIdentificado || '',
+        cubiertaFrontalProteccionContacto: row.cubiertafrontalproteccioncontacto || row.cubiertaFrontalProteccionContacto || '',
+        espacioReservaEspaciosVacios: row.espacioreservaespaciosvacios || row.espacioReservaEspaciosVacios || '',
+        interruptorPrincipalCapacidadA: Number(row.interruptorprincipalcapacidada ?? row.interruptorPrincipalCapacidadA ?? 0),
+        coordinacionProtecciones: row.coordinacionprotecciones || row.coordinacionProtecciones || '',
+        proteccionFallaTierraGfci: row.proteccionfallatierragfci || row.proteccionFallaTierraGfci || '',
+        estadoInterruptoresTermomagneticos: row.estadointerruptorestermomagneticos || row.estadoInterruptoresTermomagneticos || '',
+        tipoConductorAislamiento: row.tipoconductoraislamiento || row.tipoConductorAislamiento || '',
+        codigoColoresNormativo: row.codigocoloresnormativo || row.codigoColoresNormativo || '',
+        canalizacionesTuberiasCharolas: row.canalizacionestuberiascharolas || row.canalizacionesTuberiasCharolas || '',
+        factorLlenadoCanalizaciones: row.factorllenadocanalizaciones || row.factorLlenadoCanalizaciones || '',
+        espacioTrabajoTableros: row.espaciotrabajotableros || row.espacioTrabajoTableros || '',
+        puertasAccesoEscape: row.puertasaccesoescape || row.puertasAccesoEscape || '',
+        senalesAdvertenciaRiesgoElectrico: row.senalesadvertenciariesgoelectrico || row.senalesAdvertenciaRiesgoElectrico || '',
+        diagramaUnifilarActualizado: row.diagramaunifilaractualizado || row.diagramaUnifilarActualizado || '',
+        tapetesDielectricosAislantes: row.tapetesdielectricosaislantes || row.tapetesDielectricosAislantes || '',
+        iluminacionNormalYEmergencia: row.iluminacionnormalyemergencia || row.iluminacionNormalYEmergencia || '',
+        extintorTipoCo2PqsCercano: row.extintortipoco2pqscercano || row.extintorTipoCo2PqsCercano || '',
+        disponibilidadEppDielectrico: row.disponibilidadeppdielectrico || row.disponibilidadEppDielectrico || '',
+        medicionTensionFasesV: row.mediciontensionfasesv || row.medicionTensionFasesV || '',
+        pruebaAislamientoMegger: row.pruebaaislamientomegger || row.pruebaAislamientoMegger || '',
+        termografiaInfrarroja: row.termografiainfrarroja || row.termografiaInfrarroja || '',
+        evidencias: Array.isArray(row.evidencias) ? row.evidencias : [],
+        noConformidadesDetectadas: row.noconformidadesdetectadas || row.noConformidadesDetectadas || '',
+        medidasCorrectivasInmediatas: row.medidascorrectivasinmediatas || row.medidasCorrectivasInmediatas || '',
+        plazoSubsanacionDias: Number(row.plazosubsanaciondias ?? row.plazoSubsanacionDias ?? 0),
+        calificacionSeguridad: row.calificacionseguridad || row.calificacionSeguridad || 'Instalación Eléctrica Segura (Aprobada)',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        firmaDigital: row.firmadigital || row.firmaDigital || '',
+        esMuestra: isMuestra
+      } as SafetyEvaluationReport;
+    }
+
+    case 'mediciones_electricas': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        fechaMedicion: row.fechamedicion || row.fechaMedicion || '',
+        nombreRazonSocial: row.nombrerazonsocial || row.nombreRazonSocial || '',
+        nombreComercial: row.nombrecomercial || row.nombreComercial || '',
+        rfc: row.rfc || row.titularrfc || '',
+        domicilioCompleto: row.domiciliocompleto || row.domicilioCompleto || '',
+        municipioEstado: row.municipioestado || row.municipioEstado || '',
+        codigoPostal: row.codigopostal || row.codigoPostal || '',
+        telefono: row.telefono || '',
+        solicitante: row.solicitante || '',
+        solicitanteTelefono: row.solicitantetelefono || row.solicitanteTelefono || '',
+        giro: row.giro || '',
+        instrumentoNombre: row.instrumentonombre || row.instrumentoNombre || '',
+        instrumentoMarca: row.instrumentomarca || row.instrumentoMarca || '',
+        instrumentoModelo: row.instrumentomodelo || row.instrumentoModelo || '',
+        instrumentoSerie: row.instrumentoserie || row.instrumentoSerie || '',
+        instrumentoCalibracion: row.instrumentocalibracion || row.instrumentoCalibracion || '',
+        tensionF1F2: Number(row.tensionf1f2 ?? row.tensionF1F2 ?? 0),
+        tensionF2F3: Number(row.tensionf2f3 ?? row.tensionF2F3 ?? 0),
+        tensionF3F1: Number(row.tensionf3f1 ?? row.tensionF3F1 ?? 0),
+        tensionPromedioFF: Number(row.tensionpromedioff ?? row.tensionPromedioFF ?? 0),
+        tensionF1N: Number(row.tensionf1n ?? row.tensionF1N ?? 0),
+        tensionF2N: Number(row.tensionf2n ?? row.tensionF2N ?? 0),
+        tensionF3N: Number(row.tensionf3n ?? row.tensionF3N ?? 0),
+        tensionPromedioFN: Number(row.tensionpromediofn ?? row.tensionPromedioFN ?? 0),
+        tensionNT: Number(row.tensionnt ?? row.tensionNT ?? 0),
+        evaluacionTension: row.evaluaciontension || row.evaluacionTension || '',
+        corrienteF1: Number(row.corrientef1 ?? row.corrienteF1 ?? 0),
+        corrienteF2: Number(row.corrientef2 ?? row.corrienteF2 ?? 0),
+        corrienteF3: Number(row.corrientef3 ?? row.corrienteF3 ?? 0),
+        corrienteNeutro: Number(row.corrienteneutro ?? row.corrienteNeutro ?? 0),
+        desbalanceCorrientePorcentaje: Number(row.desbalancecorrienteporcentaje ?? row.desbalanceCorrientePorcentaje ?? 0),
+        evaluacionCorriente: row.evaluacioncorriente || row.evaluacionCorriente || '',
+        potenciaActivaKw: Number(row.potenciaactivakw ?? row.potenciaActivaKw ?? 0),
+        potenciaReactivaKvar: Number(row.potenciareactivakvar ?? row.potenciaReactivaKvar ?? 0),
+        potenciaAparenteKva: Number(row.potenciaaparentekva ?? row.potenciaAparenteKva ?? 0),
+        factorPotenciaF1: Number(row.factorpotenciaf1 ?? row.factorPotenciaF1 ?? 0),
+        factorPotenciaF2: Number(row.factorpotenciaf2 ?? row.factorPotenciaF2 ?? 0),
+        factorPotenciaF3: Number(row.factorpotenciaf3 ?? row.factorPotenciaF3 ?? 0),
+        factorPotenciaTotal: Number(row.factorpotenciatotal ?? row.factorPotenciaTotal ?? 0),
+        capacidadSubestacionKva: Number(row.capacidadsubestacionkva ?? row.capacidadSubestacionKva ?? 0),
+        porcentajeUtilizacionCapacidad: Number(row.porcentajeutilizacioncapacidad ?? row.porcentajeUtilizacionCapacidad ?? 0),
+        evaluacionFactorPotencia: row.evaluacionfactorpotencia || row.evaluacionFactorPotencia || '',
+        polaridadContactos: row.polaridadcontactos || row.polaridadContactos || '',
+        pruebaGfciDisparo: row.pruebagfcidisparo || row.pruebaGfciDisparo || '',
+        spatMetodo: row.spatmetodo || row.spatMetodo || '',
+        spatPuntoMedicion: row.spatpuntomedicion || row.spatPuntoMedicion || '',
+        spatResistenciaMedidaOhms: Number(row.spatresistenciamedidaohms ?? row.spatResistenciaMedidaOhms ?? 0),
+        spatValorMaximoPermitidoOhms: Number(row.spatvalormaximopermitidoohms ?? row.spatValorMaximoPermitidoOhms ?? 0),
+        spatDictamen: row.spatdictamen || row.spatDictamen || '',
+        descripcionTecnica: row.descripciontecnica || row.descripcionTecnica || '',
+        evidencias: Array.isArray(row.evidencias) ? row.evidencias : [],
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        firmaDigital: row.firmadigital || row.firmaDigital || '',
+        esMuestra: isMuestra
+      } as ElectricalMeasurementsReport;
+    }
+
+    case 'diagramas_unifilares': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        titulo: row.titulo || '',
+        fecha: row.fecha || '',
+        titularNombreComercial: row.titularnombrecomercial || row.titularNombreComercial || '',
+        titularRazonSocial: row.titularrazonsocial || row.titularRazonSocial || '',
+        titularRfc: row.titularrfc || row.rfc || '',
+        titularDireccion: row.titulardireccion || row.titularDireccion || '',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        imagenDataUrl: row.imagendataurl || row.imagenDataUrl || '',
+        orientacion: row.orientacion || 'horizontal',
+        ajusteModo: row.ajustemodo || row.ajusteModo || 'carta_completa',
+        rotacionGrados: Number(row.rotaciongrados ?? row.rotacionGrados ?? 0),
+        notasTecnicas: row.notastecnicas || row.notasTecnicas || '',
+        subestacionKva: Number(row.subestacionkva ?? row.subestacionKva ?? 0),
+        tensionPrimaria: row.tensionprimaria || row.tensionPrimaria || '',
+        tensionSecundaria: row.tensionsecundaria || row.tensionSecundaria || '',
+        esMuestra: isMuestra
+      } as SingleLineDiagram;
+    }
+
+    case 'cedula_perito': {
+      return {
+        id: row.id,
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        numeroCedula: row.numerocedula || row.numeroCedula || '',
+        profesion: row.profesion || '',
+        institucionEmisora: row.institucionemisora || row.institucionEmisora || '',
+        fechaExpedicion: row.fechaexpedicion || row.fechaExpedicion || '',
+        curp: row.curp || '',
+        folioRegistro: row.folioregistro || row.folioRegistro || '',
+        imagenDataUrl: row.imagendataurl || row.imagenDataUrl || '',
+        anchoCompleto: row.anchocompleto !== undefined ? Boolean(row.anchocompleto) : true,
+        observaciones: row.observaciones || '',
+        esMuestra: isMuestra
+      } as PeritoCedula;
+    }
+
+    case 'certificado_perito': {
+      return {
+        id: row.id,
+        tituloCertificado: row.titulocertificado || row.tituloCertificado || '',
+        colegioEmisor: row.colegioemisor || row.colegioEmisor || '',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        numeroRegistro: row.numeroregistro || row.numeroRegistro || '',
+        numeroCedula: row.numerocedula || row.numeroCedula || '',
+        especialidad: row.especialidad || '',
+        vigencia: row.vigencia || '',
+        fechaEmision: row.fechaemision || row.fechaEmision || '',
+        imagenDataUrl: row.imagendataurl || row.imagenDataUrl || '',
+        ajusteCompleto: row.ajustecompleto !== undefined ? Boolean(row.ajustecompleto) : true,
+        observaciones: row.observaciones || '',
+        esMuestra: isMuestra
+      } as PeritoCertificado;
+    }
+
+    default:
+      return row;
+  }
+}
+
+// ==========================================
+// OPERACIONES CRUD REMOTAS EN SUPABASE
+// ==========================================
+
 export async function saveReportToSupabase(
   report: RevisionReport, 
   customSettings?: SupabaseSettings
 ): Promise<{ success: boolean; message: string }> {
-  const settings = customSettings || getSupabaseSettings();
-  if (!settings.url || !settings.anonKey) {
-    return { success: false, message: 'Supabase no configurado' };
-  }
-
-  try {
-    const baseUrl = normalizeSupabaseUrl(settings.url);
-    const endpoint = `${baseUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}`;
-
-    const cleanRecord = {
-      ...report,
-      capacidadSubestacionKva: Number(report.capacidadSubestacionKva) || 0,
-      cargaInstaladaKw: Number(report.cargaInstaladaKw) || 0,
-      esMuestra: Boolean(report.esMuestra),
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'apikey': settings.anonKey,
-        'Authorization': `Bearer ${settings.anonKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify([cleanRecord])
-    });
-
-    if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
-      const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
-      saveSupabaseSettings(updatedSettings);
-      return { success: true, message: `Folio #${report.folio} guardado y sincronizado en Supabase.` };
-    } else {
-      const err = await response.text();
-      return { success: false, message: `Error Supabase (${response.status}): ${err}` };
-    }
-  } catch (err: any) {
-    return { success: false, message: `Error de red con Supabase: ${err.message || err}` };
-  }
+  return syncRecordToSupabaseTable(SUPABASE_TABLES.REVISIONES, report, customSettings);
 }
 
 export async function deleteReportsFromSupabase(
   ids: string[], 
   customSettings?: SupabaseSettings
 ): Promise<{ success: boolean; message: string }> {
-  if (ids.length === 0) return { success: true, message: 'Ningún registro seleccionado.' };
-  const settings = customSettings || getSupabaseSettings();
-  if (!settings.url || !settings.anonKey) {
-    return { success: false, message: 'Supabase no configurado' };
-  }
-
-  try {
-    const baseUrl = normalizeSupabaseUrl(settings.url);
-    const idFilter = ids.map(id => `"${id}"`).join(',');
-    const endpoint = `${baseUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}?id=in.(${idFilter})`;
-
-    const response = await fetch(endpoint, {
-      method: 'DELETE',
-      headers: {
-        'apikey': settings.anonKey,
-        'Authorization': `Bearer ${settings.anonKey}`,
-        'Prefer': 'return=minimal'
-      }
-    });
-
-    if (response.ok || response.status === 204 || response.status === 200) {
-      return { success: true, message: `Se eliminaron ${ids.length} registro(s) en Supabase con éxito.` };
-    } else {
-      const err = await response.text();
-      return { success: false, message: `Error Supabase (${response.status}): ${err}` };
-    }
-  } catch (err: any) {
-    return { success: false, message: `Error de red con Supabase: ${err.message || err}` };
-  }
+  return deleteRecordsFromSupabaseTable(SUPABASE_TABLES.REVISIONES, ids, customSettings);
 }
 
 export async function wipeSupabaseRecords(settings: SupabaseSettings): Promise<{ success: boolean; message: string }> {
@@ -471,47 +1154,11 @@ export async function wipeSupabaseRecords(settings: SupabaseSettings): Promise<{
 }
 
 export async function syncReportsToSupabase(reports: RevisionReport[], settings: SupabaseSettings): Promise<{ success: boolean; message: string }> {
-  if (!settings.url || !settings.anonKey) {
-    return { success: false, message: 'Configure la URL y Clave Anónima de Supabase primero.' };
-  }
-
-  try {
-    const cleanUrl = normalizeSupabaseUrl(settings.url);
-    const endpoint = `${cleanUrl}/rest/v1/${settings.tableName || 'revisiones_electricas'}`;
-
-    const cleanReports = reports.map(r => ({
-      ...r,
-      capacidadSubestacionKva: Number(r.capacidadSubestacionKva) || 0,
-      cargaInstaladaKw: Number(r.cargaInstaladaKw) || 0,
-      esMuestra: Boolean(r.esMuestra),
-    }));
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'apikey': settings.anonKey,
-        'Authorization': `Bearer ${settings.anonKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify(cleanReports)
-    });
-
-    if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
-      const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
-      saveSupabaseSettings(updatedSettings);
-      return { success: true, message: `Se sincronizaron con éxito ${reports.length} informes en Supabase.` };
-    } else {
-      const errorText = await response.text();
-      return { success: false, message: `Error al subir a Supabase (${response.status}): ${errorText}` };
-    }
-  } catch (err: any) {
-    return { success: false, message: `Fallo de conexión a Supabase: ${err.message || err}` };
-  }
+  return syncRecordToSupabaseTable(SUPABASE_TABLES.REVISIONES, reports, settings);
 }
 
 // ==========================================
-// SUPABASE: DEFINICIÓN DE TODAS LAS 8 TABLAS
+// SUPABASE: DEFINICIÓN DE TODAS LAS 9 TABLAS
 // ==========================================
 export const SUPABASE_TABLES = {
   REVISIONES: 'revisiones_electricas',
@@ -548,16 +1195,8 @@ export async function syncRecordToSupabaseTable(
     const endpoint = `${baseUrl}/rest/v1/${tableName}`;
     const rawPayload = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
 
-    // Normalize RFC and key numeric fields defensively to prevent column mismatch in PostgreSQL
-    const payload = rawPayload.map((item: any) => {
-      const copy = { ...item };
-      const commonRfc = copy.titularRfc || copy.rfc || '';
-      if (copy.titularRfc !== undefined || copy.rfc !== undefined) {
-        copy.rfc = commonRfc;
-        copy.titularRfc = commonRfc;
-      }
-      return copy;
-    });
+    // Mapear cada registro usando toSupabaseRow para garantizar compatibilidad con columnas de PostgreSQL
+    const payload = rawPayload.map(item => toSupabaseRow(tableName, item));
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -571,10 +1210,12 @@ export async function syncRecordToSupabaseTable(
     });
 
     if (response.ok || response.status === 201 || response.status === 200 || response.status === 204) {
-      return { success: true, message: `Registro guardado en ${tableName} correctamente.` };
+      const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
+      saveSupabaseSettings(updatedSettings);
+      return { success: true, message: `Registro guardado en ${tableName} correctamente en Supabase.` };
     } else {
       const err = await response.text();
-      return { success: false, message: `Supabase (${tableName}) status ${response.status}: ${err}` };
+      return { success: false, message: `Error Supabase (${tableName}) status ${response.status}: ${err}` };
     }
   } catch (err: any) {
     return { success: false, message: `Error de red al sincronizar con ${tableName}: ${err.message || err}` };
@@ -594,8 +1235,9 @@ export async function deleteRecordsFromSupabaseTable(
 
   try {
     const baseUrl = normalizeSupabaseUrl(settings.url);
-    const idFilter = ids.map(id => `"${id}"`).join(',');
-    const endpoint = `${baseUrl}/rest/v1/${tableName}?id=in.(${idFilter})`;
+    const endpoint = ids.length === 1
+      ? `${baseUrl}/rest/v1/${tableName}?id=eq.${encodeURIComponent(ids[0])}`
+      : `${baseUrl}/rest/v1/${tableName}?id=in.(${ids.map(id => encodeURIComponent(id)).join(',')})`;
 
     const response = await fetch(endpoint, {
       method: 'DELETE',
@@ -607,13 +1249,240 @@ export async function deleteRecordsFromSupabaseTable(
     });
 
     if (response.ok || response.status === 204 || response.status === 200) {
-      return { success: true, message: `Se eliminaron ${ids.length} registros en ${tableName}.` };
+      return { success: true, message: `Se eliminaron ${ids.length} registros en ${tableName} de Supabase.` };
     } else {
       const err = await response.text();
       return { success: false, message: `Supabase status ${response.status}: ${err}` };
     }
   } catch (err: any) {
     return { success: false, message: `Error al eliminar en ${tableName}: ${err.message || err}` };
+  }
+}
+
+/**
+ * Elimina definitivamente los registros de muestra en TODAS las 9 tablas de Supabase
+ */
+export async function clearSampleDataFromSupabase(
+  customSettings?: SupabaseSettings
+): Promise<{ success: boolean; message: string; deletedTables: number }> {
+  const settings = customSettings || getSupabaseSettings();
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado', deletedTables: 0 };
+  }
+
+  const baseUrl = normalizeSupabaseUrl(settings.url);
+  const tables = Object.values(SUPABASE_TABLES);
+  let deletedCount = 0;
+
+  const sampleIdsList = Array.from(KNOWN_SAMPLE_IDS).map(id => encodeURIComponent(id)).join(',');
+
+  for (const table of tables) {
+    try {
+      // 1. Borrar por esmuestra = true
+      await fetch(`${baseUrl}/rest/v1/${table}?esmuestra=eq.true`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': settings.anonKey,
+          'Authorization': `Bearer ${settings.anonKey}`,
+          'Prefer': 'return=minimal'
+        }
+      });
+
+      // 2. Borrar por IDs de muestra conocidos
+      await fetch(`${baseUrl}/rest/v1/${table}?id=in.(${sampleIdsList})`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': settings.anonKey,
+          'Authorization': `Bearer ${settings.anonKey}`,
+          'Prefer': 'return=minimal'
+        }
+      });
+
+      deletedCount++;
+    } catch (e) {
+      console.warn(`[Supabase Clear Sample] Advertencia al purgar ${table}:`, e);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'Registros de muestra purgados en Supabase exitosamente.',
+    deletedTables: deletedCount
+  };
+}
+
+/**
+ * Carga todos los registros reales desde Supabase y los sincroniza en la memoria local
+ */
+export async function loadAllFromSupabase(
+  customSettings?: SupabaseSettings
+): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    reports: RevisionReport[];
+    serviceRequests: ServiceRequest[];
+    operatingConditions: OperatingConditionsReport[];
+    safetyEvaluations: SafetyEvaluationReport[];
+    electricalMeasurements: ElectricalMeasurementsReport[];
+    diagrams: SingleLineDiagram[];
+    cedula: PeritoCedula | null;
+    certificado: PeritoCertificado | null;
+    appointments: Appointment[];
+  };
+}> {
+  const settings = customSettings || getSupabaseSettings();
+  const fallback = {
+    reports: getRevisionReports(),
+    serviceRequests: getServiceRequests(),
+    operatingConditions: getOperatingConditionsReports(),
+    safetyEvaluations: getSafetyEvaluations(),
+    electricalMeasurements: getElectricalMeasurements(),
+    diagrams: getSingleLineDiagrams(),
+    cedula: getPeritoCedula(),
+    certificado: getPeritoCertificado(),
+    appointments: getAppointments(),
+  };
+
+  if (!settings.url || !settings.anonKey) {
+    return { success: false, message: 'Supabase no configurado', data: fallback };
+  }
+
+  const hideDemo = isDemoDataHidden();
+  const baseUrl = normalizeSupabaseUrl(settings.url);
+
+  const fetchTable = async (table: string): Promise<any[]> => {
+    try {
+      const res = await fetch(`${baseUrl}/rest/v1/${table}?select=*`, {
+        headers: {
+          'apikey': settings.anonKey,
+          'Authorization': `Bearer ${settings.anonKey}`
+        }
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        return Array.isArray(rows) ? rows : [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  try {
+    const [
+      rawRev,
+      rawSrv,
+      rawCond,
+      rawEval,
+      rawMed,
+      rawDiag,
+      rawCed,
+      rawCert,
+      rawAgenda
+    ] = await Promise.all([
+      fetchTable(SUPABASE_TABLES.REVISIONES),
+      fetchTable(SUPABASE_TABLES.SOLICITUDES),
+      fetchTable(SUPABASE_TABLES.CONDICIONES),
+      fetchTable(SUPABASE_TABLES.EVALUACIONES),
+      fetchTable(SUPABASE_TABLES.MEDICIONES),
+      fetchTable(SUPABASE_TABLES.DIAGRAMAS),
+      fetchTable(SUPABASE_TABLES.CEDULA),
+      fetchTable(SUPABASE_TABLES.CERTIFICADO),
+      fetchTable(SUPABASE_TABLES.AGENDA),
+    ]);
+
+    // Deserializar cada tabla
+    const filterSample = (item: any) => {
+      if (!hideDemo) return true;
+      return !item.esMuestra && !KNOWN_SAMPLE_IDS.has(item.id);
+    };
+
+    const parsedReports: RevisionReport[] = rawRev
+      .map(r => fromSupabaseRow(SUPABASE_TABLES.REVISIONES, r))
+      .filter(filterSample);
+
+    const parsedSrv: ServiceRequest[] = rawSrv
+      .map(s => fromSupabaseRow(SUPABASE_TABLES.SOLICITUDES, s))
+      .filter(filterSample);
+
+    const parsedCond: OperatingConditionsReport[] = rawCond
+      .map(c => fromSupabaseRow(SUPABASE_TABLES.CONDICIONES, c))
+      .filter(filterSample);
+
+    const parsedEval: SafetyEvaluationReport[] = rawEval
+      .map(e => fromSupabaseRow(SUPABASE_TABLES.EVALUACIONES, e))
+      .filter(filterSample);
+
+    const parsedMed: ElectricalMeasurementsReport[] = rawMed
+      .map(m => fromSupabaseRow(SUPABASE_TABLES.MEDICIONES, m))
+      .filter(filterSample);
+
+    const parsedDiag: SingleLineDiagram[] = rawDiag
+      .map(d => fromSupabaseRow(SUPABASE_TABLES.DIAGRAMAS, d))
+      .filter(filterSample);
+
+    const parsedCedList: PeritoCedula[] = rawCed
+      .map(c => fromSupabaseRow(SUPABASE_TABLES.CEDULA, c))
+      .filter(filterSample);
+
+    const parsedCertList: PeritoCertificado[] = rawCert
+      .map(cp => fromSupabaseRow(SUPABASE_TABLES.CERTIFICADO, cp))
+      .filter(filterSample);
+
+    const parsedAgenda: Appointment[] = rawAgenda
+      .map(a => fromSupabaseRow(SUPABASE_TABLES.AGENDA, a))
+      .filter(filterSample);
+
+    // Si Supabase contiene registros, los fusionamos en localStorage para acceso offline
+    if (parsedReports.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(parsedReports));
+    }
+    if (parsedSrv.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_SERVICE_REQUESTS, JSON.stringify(parsedSrv));
+    }
+    if (parsedCond.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_OPERATING_CONDITIONS, JSON.stringify(parsedCond));
+    }
+    if (parsedEval.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_SAFETY_EVALUATIONS, JSON.stringify(parsedEval));
+    }
+    if (parsedMed.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_ELECTRICAL_MEASUREMENTS, JSON.stringify(parsedMed));
+    }
+    if (parsedDiag.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_SINGLE_LINE_DIAGRAMS, JSON.stringify(parsedDiag));
+    }
+    if (parsedCedList.length > 0) {
+      localStorage.setItem(STORAGE_KEY_PERITO_CEDULA, JSON.stringify(parsedCedList[0]));
+    }
+    if (parsedCertList.length > 0) {
+      localStorage.setItem(STORAGE_KEY_PERITO_CERTIFICADO, JSON.stringify(parsedCertList[0]));
+    }
+    if (parsedAgenda.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(parsedAgenda));
+    }
+
+    const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
+    saveSupabaseSettings(updatedSettings);
+
+    return {
+      success: true,
+      message: 'Datos cargados y sincronizados desde Supabase.',
+      data: {
+        reports: parsedReports.length > 0 || hideDemo ? parsedReports : fallback.reports,
+        serviceRequests: parsedSrv.length > 0 || hideDemo ? parsedSrv : fallback.serviceRequests,
+        operatingConditions: parsedCond.length > 0 || hideDemo ? parsedCond : fallback.operatingConditions,
+        safetyEvaluations: parsedEval.length > 0 || hideDemo ? parsedEval : fallback.safetyEvaluations,
+        electricalMeasurements: parsedMed.length > 0 || hideDemo ? parsedMed : fallback.electricalMeasurements,
+        diagrams: parsedDiag.length > 0 || hideDemo ? parsedDiag : fallback.diagrams,
+        cedula: parsedCedList.length > 0 ? parsedCedList[0] : fallback.cedula,
+        certificado: parsedCertList.length > 0 ? parsedCertList[0] : fallback.certificado,
+        appointments: parsedAgenda.length > 0 || hideDemo ? parsedAgenda : fallback.appointments,
+      }
+    };
+  } catch (err: any) {
+    return { success: false, message: `Fallo al leer de Supabase: ${err.message || err}`, data: fallback };
   }
 }
 

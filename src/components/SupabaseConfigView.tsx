@@ -40,7 +40,9 @@ import {
   deleteRevisionReport,
   checkAllSupabaseTables,
   syncAllModulesToSupabase,
-  SupabaseTableStatus
+  SupabaseTableStatus,
+  clearSampleDataFromSupabase,
+  loadAllFromSupabase
 } from '../utils/storage';
 import { SUPABASE_SQL_SCHEMA } from '../utils/supabaseSql';
 
@@ -158,14 +160,18 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     }
   };
 
-  const handleToggleHideDemo = (checked: boolean) => {
+  const handleToggleHideDemo = async (checked: boolean) => {
     setHideDemo(checked);
     setDemoDataHidden(checked);
     if (checked) {
+      setIsProcessing(true);
+      await clearSampleDataFromSupabase(config);
       clearSampleData();
+      setIsProcessing(false);
+      await fetchTablesStatus();
       setStatusMessage({
         type: 'success',
-        text: 'Preferencia activada: Se purgaron los datos de muestra y el navegador operará solo con datos reales.',
+        text: 'Preferencia activada: Se purgaron los datos de muestra en Supabase y localmente. El sistema operará solo con datos reales.',
       });
     } else {
       setStatusMessage({
@@ -176,14 +182,37 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
     onDataChanged();
   };
 
-  const handleClearSample = () => {
+  const handleClearSample = async () => {
+    setIsProcessing(true);
+    setStatusMessage({ type: 'info', text: 'Purgando registros de muestra en las 9 tablas de Supabase y localmente...' });
+    await clearSampleDataFromSupabase(config);
     const res = clearSampleData();
+    setIsProcessing(false);
     setHideDemo(true);
+    await fetchTablesStatus();
     setStatusMessage({
       type: 'success',
-      text: `Se purgaron ${res.removedCount} registros de muestra. Se conservan ${res.remainingCount} registros reales del usuario.`,
+      text: `Se purgaron los registros de muestra en las 9 tablas de Supabase y localmente (${res.removedCount} registros). No volverán a reaparecer.`,
     });
     onDataChanged();
+  };
+
+  const handlePullFromSupabase = async () => {
+    if (!config.url || !config.anonKey) {
+      setStatusMessage({ type: 'error', text: 'Supabase no configurado.' });
+      return;
+    }
+    setIsProcessing(true);
+    setStatusMessage({ type: 'info', text: 'Descargando registros actualizados desde Supabase...' });
+    const res = await loadAllFromSupabase(config);
+    setIsProcessing(false);
+    await fetchTablesStatus();
+    if (res.success) {
+      setStatusMessage({ type: 'success', text: '¡Datos sincronizados desde Supabase exitosamente!' });
+      onDataChanged();
+    } else {
+      setStatusMessage({ type: 'error', text: res.message });
+    }
   };
 
   const handleRestoreSample = () => {
@@ -342,12 +371,22 @@ export const SupabaseConfigView: React.FC<SupabaseConfigViewProps> = ({
           </button>
 
           <button
+            onClick={handlePullFromSupabase}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm disabled:opacity-50"
+            title="Cargar y descargar los registros más recientes desde Supabase"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Descargar de Supabase</span>
+          </button>
+
+          <button
             onClick={handleSyncAllModules}
             disabled={isSyncingAll}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingAll ? 'animate-spin' : ''}`} />
-            <span>Sincronizar Todos los Módulos</span>
+            <span>Sincronizar a Supabase</span>
           </button>
         </div>
       </div>

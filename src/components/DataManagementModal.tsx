@@ -23,7 +23,9 @@ import {
   saveSupabaseSettings,
   wipeSupabaseRecords,
   syncReportsToSupabase,
-  getRevisionReports
+  getRevisionReports,
+  clearSampleDataFromSupabase,
+  loadAllFromSupabase
 } from '../utils/storage';
 
 interface DataManagementModalProps {
@@ -59,14 +61,17 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleToggleHideDemo = (checked: boolean) => {
+  const handleToggleHideDemo = async (checked: boolean) => {
     setHideDemoPreference(checked);
     setDemoDataHidden(checked);
     if (checked) {
+      setIsProcessing(true);
+      await clearSampleDataFromSupabase(supabaseConfig);
       clearSampleData();
+      setIsProcessing(false);
       setStatusMessage({
         type: 'success',
-        text: 'Preferencia guardada: El navegador ya NO volverá a mostrar los datos de muestra.',
+        text: 'Preferencia guardada: Registros de muestra purgados en Supabase y memoria local. El sistema no los volverá a mostrar.',
       });
     } else {
       setStatusMessage({
@@ -77,13 +82,22 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
     onDataChanged();
   };
 
-  const handleClearSampleData = () => {
+  const handleClearSampleData = async () => {
+    setIsProcessing(true);
+    setStatusMessage({ type: 'info', text: 'Purgando registros de muestra en Supabase y almacenamiento local...' });
+    
+    // Purga en Supabase
+    await clearSampleDataFromSupabase(supabaseConfig);
+    
+    // Purga en local
     const result = clearSampleData();
+    setHideDemoPreference(true);
+    setIsProcessing(false);
+    
     setStatusMessage({
       type: 'success',
-      text: `Se eliminaron ${result.removedCount} registros de muestra. Quedan ${result.remainingCount} registros reales. Se ha activado la regla para no volver a mostrarlos.`,
+      text: `Se eliminaron los registros de muestra tanto en las 9 tablas de Supabase como en la memoria local (${result.removedCount} registros). El sistema ya no los registrará ni mostrará.`,
     });
-    setHideDemoPreference(true);
     onDataChanged();
   };
 
