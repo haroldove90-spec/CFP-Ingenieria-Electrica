@@ -95,68 +95,83 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <span>Nuevo Dictamen</span>
             </button>
 
+            {/* Secuencia 1 al 7 Oficial */}
             <button
-              onClick={() => onNavigate('diagrama_unifilar')}
-              className="px-3.5 py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-semibold rounded-xl text-xs sm:text-sm border border-sky-500/40 transition cursor-pointer flex items-center gap-2"
-            >
-              <Layers className="w-4 h-4 text-sky-400" />
-              <span>Diagrama Unifilar (Carta H/V)</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('cedula_perito')}
-              className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold rounded-xl text-xs sm:text-sm border border-emerald-500/40 transition cursor-pointer flex items-center gap-2"
-            >
-              <Award className="w-4 h-4 text-emerald-400" />
-              <span>Cédula Profesional</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('certificado_perito')}
-              className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold rounded-xl text-xs sm:text-sm border border-amber-500/40 transition cursor-pointer flex items-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Certificado Perito</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('mediciones_electricas')}
+              onClick={() => onNavigate('revisiones')}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="1.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD"
             >
-              <Activity className="w-4 h-4 text-amber-400" />
-              <span>Mediciones Pág 9 ({electricalMeasurementsCount})</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('solicitud_servicios')}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
-            >
-              <ClipboardList className="w-4 h-4 text-amber-400" />
-              <span>Solicitudes ({serviceRequestsCount})</span>
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">1</span>
+              <FileCheck2 className="w-4 h-4 text-emerald-400" />
+              <span>1. Revisión Seg. Pág 1-2 ({totalReports})</span>
             </button>
 
             <button
               onClick={() => onNavigate('condiciones_operativas')}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="2.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD"
             >
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">2</span>
               <Wrench className="w-4 h-4 text-cyan-400" />
-              <span>Revisión Pág 3-4 ({operatingConditionsCount})</span>
+              <span>2. Revisión Seg. Pág 3-4 ({operatingConditionsCount})</span>
             </button>
 
             <button
               onClick={() => onNavigate('evaluacion_seguridad')}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="3.- FORMATO PARA EVALUACION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD"
             >
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">3</span>
               <ShieldCheck className="w-4 h-4 text-purple-400" />
-              <span>Seguridad Pág 5-8 ({safetyEvaluationsCount})</span>
+              <span>3. Evaluación Pág 5-8 ({safetyEvaluationsCount})</span>
             </button>
 
             <button
-              onClick={() => onNavigate('revisiones')}
+              onClick={() => onNavigate('mediciones_electricas')}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="4.- FORMATO TECNICO DE MEDICIONES DE VARIABLES ELECTRICAS"
             >
-              <FileCheck2 className="w-4 h-4 text-emerald-400" />
-              <span>Historial ({totalReports})</span>
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">4</span>
+              <Activity className="w-4 h-4 text-amber-400" />
+              <span>4. Mediciones Pág 9 ({electricalMeasurementsCount})</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('diagrama_unifilar')}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="5.- DIAGRAMA UNIFILAR GENERAL"
+            >
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">5</span>
+              <Layers className="w-4 h-4 text-sky-400" />
+              <span>5. Diagrama Unifilar ({diagramsCount})</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('cedula_perito')}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="6.- Cédula profesional del Perito"
+            >
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">6</span>
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span>6. Cédula Profesional SEP</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('certificado_perito')}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs sm:text-sm border border-slate-700 transition cursor-pointer flex items-center gap-2"
+              title="7.- CERTIFICADO COMO PERITO DICTAMINADOR DE INSTALACIONES ELECTRICAS EN MEDIA Y BAJA TENSION"
+            >
+              <span className="w-5 h-5 rounded-md bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">7</span>
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>7. Certificado Perito CFP</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('solicitud_servicios')}
+              className="px-3.5 py-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs sm:text-sm border border-slate-700/60 transition cursor-pointer flex items-center gap-2"
+            >
+              <ClipboardList className="w-4 h-4 text-amber-400" />
+              <span>Solicitud de Servicios ({serviceRequestsCount})</span>
             </button>
           </div>
         </div>
