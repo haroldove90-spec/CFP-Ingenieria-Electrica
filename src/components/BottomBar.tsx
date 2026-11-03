@@ -7,18 +7,22 @@ import {
   Activity, 
   Layers, 
   Award, 
-  Calendar,
-  Layers3,
-  X,
-  ChevronRight,
-  ClipboardList
+  Calendar, 
+  Layers3, 
+  X, 
+  ChevronRight, 
+  ClipboardList,
+  Lock
 } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
+import { FullDictamenExpediente } from '../types';
 
 interface BottomBarProps {
   currentTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
   reportsCount: number;
+  dictamenesCount?: number;
+  activeDictamen?: FullDictamenExpediente | null;
   appointmentsCount?: number;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
@@ -31,6 +35,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   currentTab,
   onSelectTab,
   reportsCount,
+  dictamenesCount = 0,
+  activeDictamen = null,
   appointmentsCount = 0,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
@@ -46,63 +52,63 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     {
       num: '1',
       id: 'revisiones' as ActiveTab,
-      shortLabel: '1. Revisión P.1-2',
+      shortLabel: '1. Revisión P.1',
       fullTitle: '1.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 1 y 2 • Dictamen Pericial NOM-001-SEDE-2012',
+      sublabel: 'Página 1 • Dictamen Pericial NOM-001',
       icon: FileCheck2,
       badge: reportsCount,
     },
     {
       num: '2',
-      id: 'condiciones_operativas' as ActiveTab,
-      shortLabel: '2. Revisión P.3-4',
-      fullTitle: '2.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 3 y 4 • Condiciones Operativas de Seguridad',
-      icon: Wrench,
-      badge: operatingConditionsCount,
+      id: 'solicitud_servicios' as ActiveTab,
+      shortLabel: '2. Solicitud P.2',
+      fullTitle: '2.- SOLICITUD DE SERVICIOS',
+      sublabel: 'Página 2 • Datos y Foto Fachada',
+      icon: ClipboardList,
+      badge: serviceRequestsCount,
     },
     {
       num: '3',
       id: 'evaluacion_seguridad' as ActiveTab,
-      shortLabel: '3. Evaluación Seg.',
+      shortLabel: '3. Eval. Seg. P.3-6',
       fullTitle: '3.- FORMATO PARA EVALUACION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 5 a 8 • Evaluación de Seguridad de Instalaciones',
+      sublabel: 'Páginas 3 a 6 • Evaluación Integral de Seguridad',
       icon: ShieldCheck,
       badge: safetyEvaluationsCount,
     },
     {
       num: '4',
       id: 'mediciones_electricas' as ActiveTab,
-      shortLabel: '4. Mediciones',
+      shortLabel: '4. Mediciones P.7',
       fullTitle: '4.- FORMATO TECNICO DE MEDICIONES DE VARIABLES ELECTRICAS',
-      sublabel: 'Página 9 • Mediciones de Variables y Aislamiento',
+      sublabel: 'Página 7 • Mediciones de Variables y SPAT',
       icon: Activity,
       badge: electricalMeasurementsCount,
     },
     {
       num: '5',
       id: 'diagrama_unifilar' as ActiveTab,
-      shortLabel: '5. Diagrama',
+      shortLabel: '5. Diagrama P.8',
       fullTitle: '5.- DIAGRAMA UNIFILAR GENERAL',
-      sublabel: 'Diagrama Unifilar Formato Carta Horizontal / Vertical',
+      sublabel: 'Página 8 • Plano Carta Horizontal / Vertical',
       icon: Layers,
       badge: diagramsCount,
     },
     {
       num: '6',
       id: 'cedula_perito' as ActiveTab,
-      shortLabel: '6. Cédula',
+      shortLabel: '6. Cédula P.9',
       fullTitle: '6.- Cédula profesional del Perito',
-      sublabel: 'Dirección General de Profesiones (SEP)',
+      sublabel: 'Página 9 • Dirección General de Profesiones (SEP)',
       icon: Award,
       badge: 0,
     },
     {
       num: '7',
       id: 'certificado_perito' as ActiveTab,
-      shortLabel: '7. Certificado',
+      shortLabel: '7. Certificado P.10',
       fullTitle: '7.- CERTIFICADO COMO PERITO DICTAMINADOR DE INSTALACIONES ELECTRICAS EN MEDIA Y BAJA TENSION',
-      sublabel: 'Perito Dictaminador CFP Oficial M.T. y B.T.',
+      sublabel: 'Página 10 • Colegio Federal de Peritos (CFP)',
       icon: ShieldCheck,
       badge: 0,
     },
@@ -117,8 +123,15 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     isCore: boolean;
   }
 
-  // Elementos visibles en la barra inferior (Secuencia 1 al 7 prioritaria + Inicio & Agenda)
+  // Elementos visibles en la barra inferior (Historial + Inicio + Agenda + Secuencia 1 al 7)
   const allBarTabs: BarTabItem[] = [
+    {
+      id: 'historial_dictamenes',
+      shortLabel: 'Historial',
+      icon: FileCheck2,
+      badge: dictamenesCount,
+      isCore: false,
+    },
     {
       id: 'dashboard',
       shortLabel: 'Inicio',
@@ -199,43 +212,60 @@ export const BottomBar: React.FC<BottomBarProps> = ({
               {officialModules.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentTab === item.id;
+                const stepNum = parseInt(item.num, 10);
+                const isLocked = activeDictamen && !activeDictamen.isCompleted && !isNaN(stepNum) && stepNum > (activeDictamen.stepProgress || 1);
+
+                const handleClick = () => {
+                  if (isLocked) {
+                    alert(`🔒 Módulo bloqueado. Para acceder al Paso ${item.num} (${item.fullTitle}), primero debes completar y guardar los módulos anteriores en orden.`);
+                    return;
+                  }
+                  onSelectTab(item.id);
+                  setIsSheetOpen(false);
+                };
+
                 return (
                   <button
                     key={item.id}
-                    onClick={() => {
-                      onSelectTab(item.id);
-                      setIsSheetOpen(false);
-                    }}
+                    onClick={handleClick}
                     className={`w-full text-left pt-2.5 first:pt-0 p-3 rounded-xl transition flex items-start gap-3 cursor-pointer ${
                       isActive
                         ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                        : isLocked
+                        ? 'text-slate-500 opacity-60'
                         : 'hover:bg-slate-800/80 text-slate-200'
                     }`}
                   >
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black mt-0.5 ${
                       isActive
                         ? 'bg-slate-950 text-amber-400'
+                        : isLocked
+                        ? 'bg-slate-800 text-slate-500 border border-slate-800'
                         : 'bg-slate-800 text-amber-400 border border-slate-700'
                     }`}>
-                      {item.num}
+                      {isLocked ? <Lock className="w-3.5 h-3.5" /> : item.num}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-bold leading-tight ${
-                        isActive ? 'text-slate-950' : 'text-white'
+                        isActive ? 'text-slate-950' : isLocked ? 'text-slate-400' : 'text-white'
                       }`}>
                         {item.fullTitle}
                       </p>
                       <p className={`text-[11px] mt-0.5 ${
-                        isActive ? 'text-slate-800' : 'text-slate-400'
+                        isActive ? 'text-slate-800' : 'text-slate-500'
                       }`}>
                         {item.sublabel}
                       </p>
                     </div>
 
-                    <ChevronRight className={`w-4 h-4 flex-shrink-0 self-center ${
-                      isActive ? 'text-slate-950' : 'text-slate-500'
-                    }`} />
+                    {isLocked ? (
+                      <Lock className="w-4 h-4 text-slate-500 self-center" />
+                    ) : (
+                      <ChevronRight className={`w-4 h-4 flex-shrink-0 self-center ${
+                        isActive ? 'text-slate-950' : 'text-slate-500'
+                      }`} />
+                    )}
                   </button>
                 );
               })}
@@ -289,15 +319,27 @@ export const BottomBar: React.FC<BottomBarProps> = ({
           {allBarTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
+            const stepNum = tab.num ? parseInt(tab.num, 10) : NaN;
+            const isLocked = activeDictamen && !activeDictamen.isCompleted && !isNaN(stepNum) && stepNum > (activeDictamen.stepProgress || 1);
+
+            const handleClick = () => {
+              if (isLocked) {
+                alert(`🔒 Módulo bloqueado. Para acceder al Paso ${tab.num}, primero debes completar y guardar los módulos anteriores.`);
+                return;
+              }
+              onSelectTab(tab.id);
+            };
 
             return (
               <button
                 key={tab.id}
                 data-active={isActive ? 'true' : 'false'}
-                onClick={() => onSelectTab(tab.id)}
+                onClick={handleClick}
                 className={`relative flex-shrink-0 flex flex-col items-center justify-center px-2.5 py-1 min-w-[70px] sm:min-w-[85px] h-14 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
                   isActive
                     ? 'bg-amber-500/10 text-amber-400 font-bold border border-amber-500/40'
+                    : isLocked
+                    ? 'text-slate-600 opacity-60'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
               >
@@ -308,15 +350,17 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                 <div className="relative flex items-center gap-1">
                   {tab.num && (
                     <span className={`text-[10px] font-black px-1 rounded ${
-                      isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-amber-400'
+                      isActive ? 'bg-amber-400 text-slate-950' : isLocked ? 'bg-slate-800 text-slate-500' : 'bg-slate-800 text-amber-400'
                     }`}>
-                      {tab.num}
+                      {isLocked ? '🔒' : tab.num}
                     </span>
                   )}
                   <Icon
                     className={`w-4 h-4 ${
                       isActive
                         ? 'text-amber-400 scale-110'
+                        : isLocked
+                        ? 'text-slate-600'
                         : 'text-slate-400'
                     }`}
                   />

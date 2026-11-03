@@ -446,3 +446,147 @@ export async function exportDirectImageToPdf(options: {
     return false;
   }
 }
+
+/**
+ * Exporta el Dictamen Pericial Completo de 10 Páginas a un único archivo PDF oficial
+ * Cumpliendo con el formato Letter (Carta), márgenes y soporte para:
+ * 1. Modo Digital: Fondo de papel de seguridad verde guilloché
+ * 2. Modo Impresión Física: Lienzo blanco sin fondo para impresión directa en papel de seguridad
+ */
+export async function exportFull10PageDictamenToPdf(
+  containerPrefix: string,
+  folio: string,
+  cliente: string,
+  isDigitalWithSecurityPaper = true,
+  onProgress?: (page: number, total: number) => void
+): Promise<boolean> {
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+      compress: true,
+    });
+
+    const pdfWidth = 215.9;
+    const pdfHeight = 279.4;
+    const margin = 4;
+    const availableWidth = pdfWidth - margin * 2;
+    const availableHeight = pdfHeight - margin * 2;
+
+    let securityBgDataUrl: string | null = null;
+    if (isDigitalWithSecurityPaper) {
+      securityBgDataUrl = await loadSecurityBackground();
+    }
+
+    let addedPages = 0;
+
+    for (let pageNum = 1; pageNum <= 10; pageNum++) {
+      if (onProgress) onProgress(pageNum, 10);
+      const elementId = `${containerPrefix}-page-${pageNum}`;
+      const el = document.getElementById(elementId);
+      if (!el) {
+        console.warn(`Página ${pageNum} (#${elementId}) no encontrada en el DOM`);
+        continue;
+      }
+
+      if (addedPages > 0) {
+        pdf.addPage('letter', 'portrait');
+      }
+
+      // Fondo de papel de seguridad (Digital) o Blanco (Físico)
+      if (isDigitalWithSecurityPaper && securityBgDataUrl) {
+        pdf.addImage(securityBgDataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      } else {
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      }
+
+      // Captura transparente de los contenidos
+      const prevBg = el.style.backgroundColor;
+      const prevBgImg = el.style.backgroundImage;
+      const prevShadow = el.style.boxShadow;
+      const prevBorder = el.style.border;
+
+      el.style.setProperty('transition', 'none', 'important');
+      el.style.setProperty('background-image', 'none', 'important');
+      el.style.setProperty('background-color', 'transparent', 'important');
+      el.style.setProperty('box-shadow', 'none', 'important');
+      el.style.setProperty('border', 'none', 'important');
+
+      const contentPng = await toPng(el, {
+        pixelRatio: 2.0,
+        backgroundColor: 'transparent',
+        style: {
+          transform: 'none',
+          margin: '0',
+          backgroundColor: 'transparent',
+          backgroundImage: 'none',
+          boxShadow: 'none',
+          border: 'none',
+        },
+        filter: (node) => {
+          if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+            return false;
+          }
+          return true;
+        },
+      });
+
+      el.style.backgroundColor = prevBg;
+      el.style.backgroundImage = prevBgImg;
+      el.style.boxShadow = prevShadow;
+      el.style.border = prevBorder;
+
+      const img = new Image();
+      img.src = contentPng;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      const imgAspect = img.height / img.width;
+      let finalWidth = availableWidth;
+      let finalHeight = finalWidth * imgAspect;
+
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = finalHeight / imgAspect;
+      }
+
+      const posX = margin + (availableWidth - finalWidth) / 2;
+      const posY = margin + (availableHeight - finalHeight) / 2;
+
+      pdf.addImage(contentPng, 'PNG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
+      addedPages++;
+    }
+
+    if (addedPages === 0) {
+      alert('No se pudieron capturar las páginas del dictamen.');
+      return false;
+    }
+
+    const cleanCliente = (cliente || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+    const modeTag = isDigitalWithSecurityPaper ? 'DIGITAL_CON_FONDO' : 'PARA_PAPEL_FISICO_SIN_FONDO';
+    const filename = `DICTAMEN_CFP_FOLIO_${folio}_${cleanCliente}_${modeTag}.pdf`;
+
+    const blob = pdf.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 4000);
+
+    return true;
+  } catch (error) {
+    console.error('Error generando dictamen completo de 10 páginas:', error);
+    alert('Ocurrió un error al compilar el dictamen de 10 páginas en PDF. Por favor reintente.');
+    return false;
+  }
+}
+

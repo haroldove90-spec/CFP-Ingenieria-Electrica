@@ -14,7 +14,8 @@ import {
   Loader2,
   RefreshCw,
   Zap,
-  Award
+  Award,
+  FileCheck
 } from 'lucide-react';
 import { PeritoCertificado, UserRole } from '../types';
 import { exportDirectImageToPdf, exportDocumentToPdf } from '../utils/pdfExport';
@@ -24,12 +25,14 @@ interface PeritoCertificadoModuleProps {
   certificado: PeritoCertificado;
   activeRole: UserRole;
   onSaveCertificado: (cert: PeritoCertificado) => void;
+  onCompleteDictamen?: (cert: PeritoCertificado) => void;
 }
 
 export const PeritoCertificadoModule: React.FC<PeritoCertificadoModuleProps> = ({
   certificado,
   activeRole,
   onSaveCertificado,
+  onCompleteDictamen,
 }) => {
   const [formState, setFormState] = useState<PeritoCertificado>(certificado);
   const [isExporting, setIsExporting] = useState(false);
@@ -154,6 +157,19 @@ export const PeritoCertificadoModule: React.FC<PeritoCertificadoModuleProps> = (
               </>
             )}
           </button>
+
+          {onCompleteDictamen && (
+            <button
+              onClick={() => {
+                onSaveCertificado(formState);
+                onCompleteDictamen(formState);
+              }}
+              className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs sm:text-sm transition flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-xl cursor-pointer ring-2 ring-emerald-400/50"
+            >
+              <FileCheck className="w-5 h-5 text-emerald-200" />
+              <span>🎉 Guardar y Generar Dictamen Completo (PDF 10 Páginas)</span>
+            </button>
+          )}
         </div>
       </div>
 

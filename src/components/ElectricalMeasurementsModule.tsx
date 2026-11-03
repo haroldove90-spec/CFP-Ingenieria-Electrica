@@ -18,7 +18,8 @@ import {
   Camera,
   QrCode,
   Gauge,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { ElectricalMeasurementsReport, UserRole, EvidenceItem } from '../types';
 import { CfpLogo } from './CfpLogo';
@@ -31,6 +32,7 @@ interface ElectricalMeasurementsModuleProps {
   activeRole: UserRole | null;
   onSaveReport: (report: ElectricalMeasurementsReport) => void;
   onDeleteReport: (id: string) => void;
+  onSaveAndContinueNext?: (report: ElectricalMeasurementsReport) => void;
 }
 
 export const ElectricalMeasurementsModule: React.FC<ElectricalMeasurementsModuleProps> = ({
@@ -38,6 +40,7 @@ export const ElectricalMeasurementsModule: React.FC<ElectricalMeasurementsModule
   activeRole,
   onSaveReport,
   onDeleteReport,
+  onSaveAndContinueNext,
 }) => {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(() => {
     return reports.length > 0 ? reports[0].id : null;
@@ -1052,6 +1055,27 @@ export const ElectricalMeasurementsModule: React.FC<ElectricalMeasurementsModule
                     <Check className="w-4 h-4 stroke-[3]" />
                     <span>Guardar Formato de Medición</span>
                   </button>
+
+                  {onSaveAndContinueNext && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!formData.folio || !formData.nombreRazonSocial) {
+                          alert('Por favor complete los campos obligatorios (Folio y Razón Social).');
+                          return;
+                        }
+                        const reportToSave = formData as ElectricalMeasurementsReport;
+                        onSaveReport(reportToSave);
+                        setSelectedReportId(reportToSave.id);
+                        setIsEditing(false);
+                        onSaveAndContinueNext(reportToSave);
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition cursor-pointer"
+                    >
+                      <span>Guardar y seguir al siguiente módulo: DIAGRAMA UNIFILAR</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
               </form>
@@ -1121,6 +1145,16 @@ export const ElectricalMeasurementsModule: React.FC<ElectricalMeasurementsModule
                       </>
                     )}
                   </button>
+
+                  {onSaveAndContinueNext && selectedReport && (
+                    <button
+                      onClick={() => onSaveAndContinueNext(selectedReport)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    >
+                      <span>Seguir al siguiente módulo: DIAGRAMA UNIFILAR</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
               </div>

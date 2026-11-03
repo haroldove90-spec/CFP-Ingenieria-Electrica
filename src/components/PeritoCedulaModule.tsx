@@ -14,7 +14,8 @@ import {
   Info,
   Loader2,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  ArrowRight
 } from 'lucide-react';
 import { PeritoCedula, UserRole } from '../types';
 import { exportDirectImageToPdf, exportDocumentToPdf } from '../utils/pdfExport';
@@ -24,12 +25,14 @@ interface PeritoCedulaModuleProps {
   cedula: PeritoCedula;
   activeRole: UserRole;
   onSaveCedula: (cedula: PeritoCedula) => void;
+  onSaveAndContinueNext?: (cedula: PeritoCedula) => void;
 }
 
 export const PeritoCedulaModule: React.FC<PeritoCedulaModuleProps> = ({
   cedula,
   activeRole,
   onSaveCedula,
+  onSaveAndContinueNext,
 }) => {
   const [formState, setFormState] = useState<PeritoCedula>(cedula);
   const [isExporting, setIsExporting] = useState(false);
@@ -156,6 +159,19 @@ export const PeritoCedulaModule: React.FC<PeritoCedulaModuleProps> = ({
               </>
             )}
           </button>
+
+          {onSaveAndContinueNext && (
+            <button
+              onClick={() => {
+                onSaveCedula(formState);
+                onSaveAndContinueNext(formState);
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs sm:text-sm transition flex items-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <span>Guardar y seguir al siguiente módulo: CERTIFICADO CFP</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

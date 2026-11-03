@@ -32,6 +32,7 @@ interface ServiceRequestModuleProps {
   onDeleteRequest: (id: string) => void;
   initialMode?: 'document' | 'form' | 'list';
   autoCreate?: boolean;
+  onSaveAndContinueNext?: (request: ServiceRequest) => void;
 }
 
 export const ServiceRequestModule: React.FC<ServiceRequestModuleProps> = ({
@@ -41,6 +42,7 @@ export const ServiceRequestModule: React.FC<ServiceRequestModuleProps> = ({
   onDeleteRequest,
   initialMode = 'list',
   autoCreate = false,
+  onSaveAndContinueNext,
 }) => {
   const [selectedRequestId, setSelectedRequestId] = useState<string>(
     requests.length > 0 ? requests[0].id : ''
@@ -798,7 +800,7 @@ export const ServiceRequestModule: React.FC<ServiceRequestModuleProps> = ({
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={() => setViewMode('list')}
@@ -808,9 +810,49 @@ export const ServiceRequestModule: React.FC<ServiceRequestModuleProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs shadow transition cursor-pointer"
             >
-              Guardar y Ver Formato Oficial
+              Guardar Borrador
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const reqToSave: ServiceRequest = {
+                  id: formData.id || `req-${Date.now()}`,
+                  folio: formData.folio || '0101',
+                  fechaVisita: formData.fechaVisita || '02-oct-26',
+                  peritoRegistroCfp: formData.peritoRegistroCfp || 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+                  peritoCedula: formData.peritoCedula || '15240154',
+                  peritoTelefono: formData.peritoTelefono || '4431748638',
+                  peritoEmail: formData.peritoEmail || 'israel9b@hotmail.com',
+                  peritoNombre: formData.peritoNombre || 'ING.ISRAEL OROZCO ARIAS',
+                  nombreComercial: (formData.nombreComercial || '').toUpperCase(),
+                  nombreRazonSocial: (formData.nombreRazonSocial || '').toUpperCase(),
+                  rfc: (formData.rfc || '').toUpperCase(),
+                  calleNumero: (formData.calleNumero || '').toUpperCase(),
+                  coloniaPoblacion: (formData.coloniaPoblacion || '').toUpperCase(),
+                  municipioDelegacion: (formData.municipioDelegacion || 'MORELIA').toUpperCase(),
+                  ciudadEstado: (formData.ciudadEstado || 'MORELIA, MICHOACÁN').toUpperCase(),
+                  codigoPostal: formData.codigoPostal || '',
+                  telefonoInstalacion: formData.telefonoInstalacion || '',
+                  solicitanteNombre: (formData.solicitanteNombre || '').toUpperCase(),
+                  solicitanteTelefono: formData.solicitanteTelefono || '',
+                  fotoReferencia: formData.fotoReferencia || '',
+                  firmaPerito: formData.firmaPerito,
+                  firmaSolicitante: formData.firmaSolicitante,
+                  esMuestra: false,
+                };
+                onSaveRequest(reqToSave);
+                if (onSaveAndContinueNext) {
+                  onSaveAndContinueNext(reqToSave);
+                } else {
+                  setSelectedRequestId(reqToSave.id);
+                  setViewMode('document');
+                }
+              }}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition active:scale-95"
+            >
+              <span>Guardar y seguir al siguiente módulo: EVALUACIÓN DE SEGURIDAD ➔</span>
             </button>
           </div>
 

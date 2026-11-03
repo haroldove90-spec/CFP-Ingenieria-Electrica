@@ -37,6 +37,7 @@ interface SafetyEvaluationModuleProps {
   onDeleteReport: (id: string) => void;
   initialMode?: 'document' | 'form' | 'list';
   autoCreate?: boolean;
+  onSaveAndContinueNext?: (report: SafetyEvaluationReport) => void;
 }
 
 export const SafetyEvaluationModule: React.FC<SafetyEvaluationModuleProps> = ({
@@ -46,6 +47,7 @@ export const SafetyEvaluationModule: React.FC<SafetyEvaluationModuleProps> = ({
   onDeleteReport,
   initialMode = 'list',
   autoCreate = false,
+  onSaveAndContinueNext,
 }) => {
   const [selectedReportId, setSelectedReportId] = useState<string>(
     reports.length > 0 ? reports[0].id : ''
@@ -938,7 +940,7 @@ export const SafetyEvaluationModule: React.FC<SafetyEvaluationModuleProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={() => setViewMode('list')}
@@ -948,9 +950,32 @@ export const SafetyEvaluationModule: React.FC<SafetyEvaluationModuleProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition cursor-pointer"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs shadow transition cursor-pointer"
             >
-              Guardar y Ver Formato Impreso
+              Guardar Borrador
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!formData.folio || !formData.razonSocial) {
+                  alert('Por favor complete los campos obligatorios (Folio y Razón Social) antes de continuar.');
+                  return;
+                }
+                const fullReport: SafetyEvaluationReport = {
+                  ...(formData as SafetyEvaluationReport),
+                  id: formData.id || `eval-${Date.now()}`,
+                };
+                onSaveReport(fullReport);
+                if (onSaveAndContinueNext) {
+                  onSaveAndContinueNext(fullReport);
+                } else {
+                  setSelectedReportId(fullReport.id);
+                  setViewMode('document');
+                }
+              }}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition active:scale-95"
+            >
+              <span>Guardar y seguir al siguiente módulo: MEDICIONES TÉCNICAS ➔</span>
             </button>
           </div>
         </form>

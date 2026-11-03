@@ -9,7 +9,8 @@ import {
   PeritoCedula,
   PeritoCertificado,
   Appointment,
-  GeneratedQrCode
+  GeneratedQrCode,
+  FullDictamenExpediente
 } from '../types';
 import { 
   SAMPLE_DIAGRAM_DATA_URL, 
@@ -27,6 +28,7 @@ const STORAGE_KEY_PERITO_CEDULA = 'cfp_perito_cedula';
 const STORAGE_KEY_PERITO_CERTIFICADO = 'cfp_perito_certificado';
 const STORAGE_KEY_APPOINTMENTS = 'cfp_agenda_citas';
 const STORAGE_KEY_GENERATED_QRS = 'cfp_generated_qrs';
+const STORAGE_KEY_FULL_DICTAMENES = 'cfp_dictamenes_expedientes';
 const STORAGE_KEY_HIDE_DEMO = 'cfp_hide_demo_data';
 const STORAGE_KEY_SUPABASE = 'cfp_supabase_config';
 const STORAGE_KEY_ACTIVE_ROLE = 'cfp_active_role';
@@ -388,6 +390,45 @@ export function toSupabaseRow(tableName: string, data: any): any {
   const isMuestra = Boolean(data.esMuestra ?? data.esmuestra ?? isSampleRecord(data.id, data.esMuestra));
 
   switch (tableName) {
+    case 'dictamenes_expedientes': {
+      const d = data as FullDictamenExpediente;
+      const commonRfc = d.titularRfc || '';
+      return {
+        id: String(d.id),
+        folio: String(d.folio || ''),
+        claveexpediente: d.claveExpediente || '',
+        fecha: d.fecha || '',
+        titularnombrecomercial: d.titularNombreComercial || '',
+        titularrazonsocial: d.titularRazonSocial || '',
+        titularrfc: commonRfc,
+        rfc: commonRfc,
+        titularcallenumero: d.titularCalleNumero || '',
+        titularcolonia: d.titularColonia || '',
+        titularmunicipio: d.titularMunicipio || '',
+        titularciudadestado: d.titularCiudadEstado || '',
+        titularcodigopostal: d.titularCodigoPostal || '',
+        titulartelefono: d.titularTelefono || '',
+        solicitantenombre: d.solicitanteNombre || '',
+        solicitantetelefono: d.solicitanteTelefono || '',
+        peritonombre: d.peritoNombre || '',
+        peritocedula: d.peritoCedula || '',
+        peritoafiliacion: d.peritoAfiliacion || '',
+        peritoemail: d.peritoEmail || '',
+        peritotelefono: d.peritoTelefono || '',
+        stepprogress: Number(d.stepProgress) || 1,
+        iscompleted: Boolean(d.isCompleted),
+        fechageneraciondictamen: d.fechaGeneracionDictamen || '',
+        revisiondata: d.revisionData || null,
+        solicituddata: d.solicitudData || null,
+        evaluaciondata: d.evaluacionData || null,
+        medicionesdata: d.medicionesData || null,
+        diagramadata: d.diagramaData || null,
+        ceduladata: d.cedulaData || null,
+        certificadodata: d.certificadoData || null,
+        esmuestra: isMuestra
+      };
+    }
+
     case 'revisiones_electricas': {
       const r = data as RevisionReport;
       const commonRfc = r.titularRfc || (r as any).rfc || '';
@@ -761,6 +802,44 @@ export function fromSupabaseRow(tableName: string, row: any): any {
   const isMuestra = Boolean(row.esmuestra ?? row.esMuestra ?? isSampleRecord(row.id, row.esmuestra));
 
   switch (tableName) {
+    case 'dictamenes_expedientes': {
+      return {
+        id: row.id,
+        folio: row.folio || '',
+        claveExpediente: row.claveexpediente || row.claveExpediente || '',
+        fecha: row.fecha || '',
+        titularNombreComercial: row.titularnombrecomercial || row.titularNombreComercial || '',
+        titularRazonSocial: row.titularrazonsocial || row.titularRazonSocial || '',
+        titularRfc: row.titularrfc || row.rfc || row.titularRfc || '',
+        titularCalleNumero: row.titularcallenumero || row.titularCalleNumero || '',
+        titularColonia: row.titularcolonia || row.titularColonia || '',
+        titularMunicipio: row.titularmunicipio || row.titularMunicipio || '',
+        titularCiudadEstado: row.titularciudadestado || row.titularCiudadEstado || '',
+        titularCodigoPostal: row.titularcodigopostal || row.titularCodigoPostal || '',
+        titularTelefono: row.titulartelefono || row.titularTelefono || '',
+        solicitanteNombre: row.solicitantenombre || row.solicitanteNombre || '',
+        solicitanteTelefono: row.solicitantetelefono || row.solicitanteTelefono || '',
+        peritoNombre: row.peritonombre || row.peritoNombre || '',
+        peritoCedula: row.peritocedula || row.peritoCedula || '',
+        peritoAfiliacion: row.peritoafiliacion || row.peritoAfiliacion || '',
+        peritoEmail: row.peritoemail || row.peritoEmail || '',
+        peritoTelefono: row.peritotelefono || row.peritoTelefono || '',
+        stepProgress: Number(row.stepprogress ?? row.stepProgress ?? 1),
+        isCompleted: Boolean(row.iscompleted ?? row.isCompleted),
+        fechaGeneracionDictamen: row.fechageneraciondictamen || row.fechaGeneracionDictamen || '',
+        revisionData: row.revisiondata || row.revisionData || undefined,
+        solicitudData: row.solicituddata || row.solicitudData || undefined,
+        evaluacionData: row.evaluaciondata || row.evaluacionData || undefined,
+        medicionesData: row.medicionesdata || row.medicionesData || undefined,
+        diagramaData: row.diagramadata || row.diagramaData || undefined,
+        cedulaData: row.ceduladata || row.cedulaData || undefined,
+        certificadoData: row.certificadodata || row.certificadoData || undefined,
+        esMuestra: isMuestra,
+        createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+        updatedAt: row.updated_at || row.updatedAt || new Date().toISOString()
+      } as FullDictamenExpediente;
+    }
+
     case 'revisiones_electricas': {
       return {
         id: row.id,
@@ -1161,6 +1240,7 @@ export async function syncReportsToSupabase(reports: RevisionReport[], settings:
 // SUPABASE: DEFINICIÓN DE TODAS LAS 9 TABLAS
 // ==========================================
 export const SUPABASE_TABLES = {
+  EXPEDIENTES: 'dictamenes_expedientes',
   REVISIONES: 'revisiones_electricas',
   SOLICITUDES: 'solicitudes_servicio',
   CONDICIONES: 'condiciones_operativas',
@@ -1329,6 +1409,7 @@ export async function loadAllFromSupabase(
     cedula: PeritoCedula | null;
     certificado: PeritoCertificado | null;
     appointments: Appointment[];
+    dictamenes: FullDictamenExpediente[];
   };
 }> {
   const settings = customSettings || getSupabaseSettings();
@@ -1342,6 +1423,7 @@ export async function loadAllFromSupabase(
     cedula: getPeritoCedula(),
     certificado: getPeritoCertificado(),
     appointments: getAppointments(),
+    dictamenes: getFullDictamenes(),
   };
 
   if (!settings.url || !settings.anonKey) {
@@ -1379,7 +1461,8 @@ export async function loadAllFromSupabase(
       rawDiag,
       rawCed,
       rawCert,
-      rawAgenda
+      rawAgenda,
+      rawExp
     ] = await Promise.all([
       fetchTable(SUPABASE_TABLES.REVISIONES),
       fetchTable(SUPABASE_TABLES.SOLICITUDES),
@@ -1390,6 +1473,7 @@ export async function loadAllFromSupabase(
       fetchTable(SUPABASE_TABLES.CEDULA),
       fetchTable(SUPABASE_TABLES.CERTIFICADO),
       fetchTable(SUPABASE_TABLES.AGENDA),
+      fetchTable(SUPABASE_TABLES.EXPEDIENTES),
     ]);
 
     // Deserializar cada tabla
@@ -1434,6 +1518,10 @@ export async function loadAllFromSupabase(
       .map(a => fromSupabaseRow(SUPABASE_TABLES.AGENDA, a))
       .filter(filterSample);
 
+    const parsedExp: FullDictamenExpediente[] = (rawExp || [])
+      .map(e => fromSupabaseRow(SUPABASE_TABLES.EXPEDIENTES, e))
+      .filter(filterSample);
+
     // Si Supabase contiene registros, los fusionamos en localStorage para acceso offline
     if (parsedReports.length > 0 || hideDemo) {
       localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(parsedReports));
@@ -1462,6 +1550,9 @@ export async function loadAllFromSupabase(
     if (parsedAgenda.length > 0 || hideDemo) {
       localStorage.setItem(STORAGE_KEY_APPOINTMENTS, JSON.stringify(parsedAgenda));
     }
+    if (parsedExp.length > 0 || hideDemo) {
+      localStorage.setItem(STORAGE_KEY_FULL_DICTAMENES, JSON.stringify(parsedExp));
+    }
 
     const updatedSettings = { ...settings, connected: true, lastSync: new Date().toISOString() };
     saveSupabaseSettings(updatedSettings);
@@ -1479,6 +1570,7 @@ export async function loadAllFromSupabase(
         cedula: parsedCedList.length > 0 ? parsedCedList[0] : fallback.cedula,
         certificado: parsedCertList.length > 0 ? parsedCertList[0] : fallback.certificado,
         appointments: parsedAgenda.length > 0 || hideDemo ? parsedAgenda : fallback.appointments,
+        dictamenes: parsedExp.length > 0 || hideDemo ? parsedExp : fallback.dictamenes,
       }
     };
   } catch (err: any) {
@@ -1489,14 +1581,15 @@ export async function loadAllFromSupabase(
 export async function checkAllSupabaseTables(customSettings?: SupabaseSettings): Promise<SupabaseTableStatus[]> {
   const settings = customSettings || getSupabaseSettings();
   const tables = [
-    { name: '1. Dictámenes Eléctricos', tableName: 'revisiones_electricas', description: 'Revisión y Dictámenes NOM-001' },
-    { name: '2. Solicitudes de Servicio', tableName: 'solicitudes_servicio', description: 'Solicitudes y Levantamientos' },
-    { name: '3. Condiciones Operativas', tableName: 'condiciones_operativas', description: 'Inspección de Subestación y Tierras' },
-    { name: '4. Evaluaciones de Seguridad', tableName: 'evaluaciones_seguridad', description: 'Evaluación Técnica Páginas 5-8' },
-    { name: '5. Mediciones Eléctricas', tableName: 'mediciones_electricas', description: 'Variables Eléctricas y SPAT Página 9' },
-    { name: '6. Diagramas Unifilares', tableName: 'diagramas_unifilares', description: 'Diagramas Unifilares en Tamaño Carta' },
-    { name: '7. Cédula del Perito', tableName: 'cedula_perito', description: 'Cédula Profesional DGP-SEP' },
-    { name: '8. Certificado de Perito', tableName: 'certificado_perito', description: 'Acreditación Oficial Pericial CFP' },
+    { name: '0. Expedientes Completos (10 Págs)', tableName: 'dictamenes_expedientes', description: 'Expedientes Oficiales de Dictámenes Unificados' },
+    { name: '1. Dictámenes Eléctricos (Pág 1)', tableName: 'revisiones_electricas', description: 'Revisión y Dictámenes NOM-001' },
+    { name: '2. Solicitudes de Servicio (Pág 2)', tableName: 'solicitudes_servicio', description: 'Solicitudes y Levantamientos' },
+    { name: '3. Condiciones Operativas (Págs 3-4)', tableName: 'condiciones_operativas', description: 'Inspección de Subestación y Tierras' },
+    { name: '4. Evaluaciones de Seguridad (Págs 3-6)', tableName: 'evaluaciones_seguridad', description: 'Evaluación Técnica de Seguridad' },
+    { name: '5. Mediciones Eléctricas (Pág 7)', tableName: 'mediciones_electricas', description: 'Variables Eléctricas y SPAT' },
+    { name: '6. Diagramas Unifilares (Pág 8)', tableName: 'diagramas_unifilares', description: 'Diagramas Unifilares en Tamaño Carta' },
+    { name: '7. Cédula del Perito (Pág 9)', tableName: 'cedula_perito', description: 'Cédula Profesional DGP-SEP' },
+    { name: '8. Certificado de Perito (Pág 10)', tableName: 'certificado_perito', description: 'Acreditación Oficial Pericial CFP' },
     { name: '9. Agenda de Citas', tableName: 'agenda_citas', description: 'Citas y Visitas Técnicas de Inspección' },
   ];
 
@@ -2556,5 +2649,172 @@ export function deleteGeneratedQrCode(id: string): GeneratedQrCode[] {
   localStorage.setItem(STORAGE_KEY_GENERATED_QRS, JSON.stringify(updated));
   return updated;
 }
+
+// ==========================================
+// MÓDULO MAESTRO: EXPEDIENTES DE DICTÁMENES COMPLETOS (7 MÓDULOS / 10 PÁGINAS)
+// ==========================================
+
+export const SAMPLE_FULL_DICTAMENES: FullDictamenExpediente[] = [
+  {
+    id: 'dictamen-exp-359',
+    folio: '359',
+    claveExpediente: 'CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026',
+    fecha: '02-oct-26',
+    titularNombreComercial: 'ABARROTES AZTECA SUC. TIJERAS',
+    titularRazonSocial: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+    titularRfc: 'AAT170629U46',
+    titularCalleNumero: 'JUAN DE BAEZA #600',
+    titularColonia: 'DIECIOCHO DE MAYO',
+    titularMunicipio: 'MORELIA',
+    titularCiudadEstado: 'MORELIA, MICHOACÁN',
+    titularCodigoPostal: '58258',
+    titularTelefono: '4433234075',
+    solicitanteNombre: 'VICTOR DANIEL RIOS RAMIREZ',
+    solicitanteTelefono: '4438573253',
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoCedula: '15240154',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoEmail: 'israel9b@hotmail.com',
+    peritoTelefono: '4431748638',
+    stepProgress: 7,
+    isCompleted: true,
+    fechaGeneracionDictamen: '02-oct-26',
+    revisionData: SAMPLE_REPORTS[0],
+    solicitudData: {
+      id: 'req-359',
+      folio: '0101',
+      fechaVisita: '02-oct-26',
+      peritoRegistroCfp: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+      peritoCedula: '15240154',
+      peritoTelefono: '4431748638',
+      peritoEmail: 'israel9b@hotmail.com',
+      peritoNombre: 'ING. ISRAEL OROZCO ARIAS',
+      nombreComercial: 'ABARROTES AZTECA SUC. TIJERAS',
+      nombreRazonSocial: 'ABARROTES AZTECA TIJERAS S.A DE C.V',
+      rfc: 'AAT170629U46',
+      calleNumero: 'JUAN DE BAEZA #600',
+      coloniaPoblacion: 'DIECIOCHO DE MAYO',
+      municipioDelegacion: 'MORELIA',
+      ciudadEstado: 'MORELIA, MICHOACÁN',
+      codigoPostal: '58258',
+      telefonoInstalacion: '4433234075',
+      solicitanteNombre: 'VICTOR DANIEL RIOS RAMIREZ',
+      solicitanteTelefono: '4438573253',
+      esMuestra: true
+    },
+    evaluacionData: SAMPLE_SAFETY_EVALUATIONS[0],
+    medicionesData: SAMPLE_ELECTRICAL_MEASUREMENTS[0],
+    diagramaData: SAMPLE_SINGLE_LINE_DIAGRAMS[0],
+    cedulaData: SAMPLE_PERITO_CEDULA,
+    certificadoData: SAMPLE_PERITO_CERTIFICADO,
+    esMuestra: true,
+    createdAt: '2026-10-02T10:00:00.000Z',
+    updatedAt: '2026-10-02T12:30:00.000Z'
+  }
+];
+
+export function getFullDictamenes(): FullDictamenExpediente[] {
+  if (typeof window === 'undefined') return SAMPLE_FULL_DICTAMENES;
+  const hideDemo = isDemoDataHidden();
+  const raw = localStorage.getItem(STORAGE_KEY_FULL_DICTAMENES);
+
+  if (!raw) {
+    if (hideDemo) return [];
+    localStorage.setItem(STORAGE_KEY_FULL_DICTAMENES, JSON.stringify(SAMPLE_FULL_DICTAMENES));
+    return SAMPLE_FULL_DICTAMENES;
+  }
+
+  try {
+    const list: FullDictamenExpediente[] = JSON.parse(raw);
+    if (hideDemo) {
+      return list.filter(item => !item.esMuestra);
+    }
+    return list;
+  } catch {
+    return hideDemo ? [] : SAMPLE_FULL_DICTAMENES;
+  }
+}
+
+export function saveFullDictamen(dictamen: FullDictamenExpediente): FullDictamenExpediente[] {
+  const current = getFullDictamenes();
+  const existsIndex = current.findIndex(d => d.id === dictamen.id || d.folio === dictamen.folio);
+  let updated: FullDictamenExpediente[];
+
+  const toSave: FullDictamenExpediente = {
+    ...dictamen,
+    updatedAt: new Date().toISOString(),
+    esMuestra: false
+  };
+
+  if (existsIndex >= 0) {
+    updated = [...current];
+    updated[existsIndex] = toSave;
+  } else {
+    updated = [toSave, ...current];
+  }
+
+  localStorage.setItem(STORAGE_KEY_FULL_DICTAMENES, JSON.stringify(updated));
+
+  // Sync to Supabase
+  syncRecordToSupabaseTable(SUPABASE_TABLES.EXPEDIENTES, toSave).catch(console.error);
+
+  return updated;
+}
+
+export function deleteFullDictamen(id: string): FullDictamenExpediente[] {
+  const current = getFullDictamenes();
+  const updated = current.filter(d => d.id !== id);
+  localStorage.setItem(STORAGE_KEY_FULL_DICTAMENES, JSON.stringify(updated));
+
+  // Sync delete to Supabase
+  deleteRecordsFromSupabaseTable(SUPABASE_TABLES.EXPEDIENTES, [id]).catch(console.error);
+
+  return updated;
+}
+
+export function createInitialDictamen(suggestedFolio?: string): FullDictamenExpediente {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const month = months[now.getMonth()];
+  const yearShort = String(now.getFullYear()).slice(-2);
+  const formattedDate = `${day}-${month}-${yearShort}`;
+  const yearFull = now.getFullYear();
+
+  const all = getFullDictamenes();
+  const maxFolio = all.reduce((max, d) => {
+    const n = parseInt(d.folio.replace(/\D/g, ''), 10);
+    return !isNaN(n) && n > max ? n : max;
+  }, 361);
+  const folio = suggestedFolio || String(maxFolio + 1);
+
+  return {
+    id: `dictamen-${Date.now()}`,
+    folio,
+    claveExpediente: `CFP0125/PCIEMBT/IOA/0071/14XII20 - ${folio}/${yearFull}`,
+    fecha: formattedDate,
+    titularNombreComercial: '',
+    titularRazonSocial: '',
+    titularRfc: '',
+    titularCalleNumero: '',
+    titularColonia: '',
+    titularMunicipio: 'MORELIA',
+    titularCiudadEstado: 'MORELIA, MICHOACÁN',
+    titularCodigoPostal: '',
+    titularTelefono: '',
+    solicitanteNombre: '',
+    solicitanteTelefono: '',
+    peritoNombre: 'Ing. Israel Orozco Arias',
+    peritoCedula: '15240154',
+    peritoAfiliacion: 'CFP0125/PCIEMBT/IOA/0071/14XII20',
+    peritoEmail: 'israel9b@hotmail.com',
+    peritoTelefono: '4431748638',
+    stepProgress: 1,
+    isCompleted: false,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString()
+  };
+}
+
 
 

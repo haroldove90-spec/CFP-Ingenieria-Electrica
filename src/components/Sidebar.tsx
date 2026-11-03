@@ -14,12 +14,14 @@ import {
   Activity,
   Layers,
   Award,
-  Calendar
+  Calendar,
+  Lock
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, FullDictamenExpediente } from '../types';
 
 export type ActiveTab = 
   | 'dashboard' 
+  | 'historial_dictamenes'
   | 'agenda'
   | 'nuevo_dictamen' 
   | 'revisiones' 
@@ -41,6 +43,8 @@ interface SidebarProps {
   activeRole: UserRole;
   onLogout: () => void;
   reportsCount: number;
+  dictamenesCount?: number;
+  activeDictamen?: FullDictamenExpediente | null;
   appointmentsCount?: number;
   serviceRequestsCount?: number;
   operatingConditionsCount?: number;
@@ -57,6 +61,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeRole,
   onLogout,
   reportsCount,
+  dictamenesCount = 0,
+  activeDictamen = null,
   appointmentsCount = 0,
   serviceRequestsCount = 0,
   operatingConditionsCount = 0,
@@ -64,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   electricalMeasurementsCount = 0,
   diagramsCount = 0,
 }) => {
-  // Accesos de Control y Gestión
+  // Accesos de Control y Gestión Principal
   const generalItems = [
     {
       id: 'dashboard' as ActiveTab,
@@ -73,82 +79,88 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null,
     },
     {
+      id: 'historial_dictamenes' as ActiveTab,
+      label: 'Historial de Dictámenes',
+      icon: FileCheck2,
+      badge: dictamenesCount > 0 ? `${dictamenesCount} exp` : null,
+      highlight: true,
+    },
+    {
       id: 'agenda' as ActiveTab,
       label: 'Agenda de Citas',
       icon: Calendar,
       badge: appointmentsCount > 0 ? appointmentsCount.toString() : null,
-      highlight: true,
-    },
-    {
-      id: 'solicitud_servicios' as ActiveTab,
-      label: 'Solicitud de Servicios',
-      icon: ClipboardList,
-      badge: serviceRequestsCount > 0 ? serviceRequestsCount.toString() : null,
     },
   ];
 
-  // 7 Módulos Oficiales del Expediente Pericial en el orden exacto solicitado
+  // 7 Módulos Oficiales del Expediente Pericial en el orden exacto del dictamen (Págs 1 a 10)
   const officialModules = [
     {
-      num: '1',
+      num: 1,
       id: 'revisiones' as ActiveTab,
       label: '1.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 1 y 2 • Dictamen Pericial NOM-001',
+      sublabel: 'Página 1 • Dictamen Pericial NOM-001',
       icon: FileCheck2,
-      badge: reportsCount > 0 ? `${reportsCount} doc` : 'Pág. 1-2',
+      badge: 'Pág. 1',
     },
     {
-      num: '2',
-      id: 'condiciones_operativas' as ActiveTab,
-      label: '2.- REVISION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 3 y 4 • Condiciones Operativas',
-      icon: Wrench,
-      badge: operatingConditionsCount > 0 ? `${operatingConditionsCount} doc` : 'Pág. 3-4',
+      num: 2,
+      id: 'solicitud_servicios' as ActiveTab,
+      label: '2.- SOLICITUD DE SERVICIOS',
+      sublabel: 'Página 2 • Datos y Foto Fachada',
+      icon: ClipboardList,
+      badge: 'Pág. 2',
     },
     {
-      num: '3',
+      num: 3,
       id: 'evaluacion_seguridad' as ActiveTab,
       label: '3.- FORMATO PARA EVALUACION DE INSTALACIONES ELECTRICAS EN MATERIA DE SEGURIDAD',
-      sublabel: 'Páginas 5 a 8 • Evaluación de Seguridad',
+      sublabel: 'Páginas 3 a 6 • Evaluación Integral de Seguridad',
       icon: ShieldCheck,
-      badge: safetyEvaluationsCount > 0 ? `${safetyEvaluationsCount} doc` : 'Pág. 5-8',
+      badge: 'Pág. 3-6',
     },
     {
-      num: '4',
+      num: 4,
       id: 'mediciones_electricas' as ActiveTab,
       label: '4.- FORMATO TECNICO DE MEDICIONES DE VARIABLES ELECTRICAS',
-      sublabel: 'Página 9 • Mediciones de Variables',
+      sublabel: 'Página 7 • Mediciones de Variables y SPAT',
       icon: Activity,
-      badge: electricalMeasurementsCount > 0 ? `${electricalMeasurementsCount} doc` : 'Pág. 9',
+      badge: 'Pág. 7',
     },
     {
-      num: '5',
+      num: 5,
       id: 'diagrama_unifilar' as ActiveTab,
       label: '5.- DIAGRAMA UNIFILAR GENERAL',
-      sublabel: 'Formato Carta Horizontal / Vertical',
+      sublabel: 'Página 8 • Plano Carta Horizontal / Vertical',
       icon: Layers,
-      badge: diagramsCount > 0 ? `${diagramsCount} doc` : 'Plano',
+      badge: 'Pág. 8',
     },
     {
-      num: '6',
+      num: 6,
       id: 'cedula_perito' as ActiveTab,
       label: '6.- Cédula profesional del Perito',
-      sublabel: 'Dirección General de Profesiones (SEP)',
+      sublabel: 'Página 9 • Dirección General de Profesiones SEP',
       icon: Award,
-      badge: 'SEP',
+      badge: 'Pág. 9',
     },
     {
-      num: '7',
+      num: 7,
       id: 'certificado_perito' as ActiveTab,
       label: '7.- CERTIFICADO COMO PERITO DICTAMINADOR DE INSTALACIONES ELECTRICAS EN MEDIA Y BAJA TENSION',
-      sublabel: 'Colegio / CFP Peritaje Oficial M.T. y B.T.',
+      sublabel: 'Página 10 • Colegio Federal de Peritos CFP',
       icon: ShieldCheck,
-      badge: 'CFP',
+      badge: 'Pág. 10',
     },
   ];
 
-  // Herramientas y Configuración
+  // Herramientas y Módulos Complementarios
   const utilityItems = [
+    {
+      id: 'condiciones_operativas' as ActiveTab,
+      label: 'Condiciones Operativas (Auxiliar)',
+      icon: Wrench,
+      badge: operatingConditionsCount > 0 ? `${operatingConditionsCount}` : null,
+    },
     {
       id: 'verificador' as ActiveTab,
       label: 'Verificador Código / QR',
@@ -262,14 +274,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {officialModules.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
+            const isLocked = activeDictamen && !activeDictamen.isCompleted && item.num > (activeDictamen.stepProgress || 1);
+
+            const handleClick = () => {
+              if (isLocked) {
+                alert(`🔒 Módulo bloqueado. Para acceder al Paso ${item.num} (${item.label}), primero debes completar y guardar los módulos anteriores en orden.`);
+                return;
+              }
+              onSelectTab(item.id);
+            };
+
             return (
               <button
                 key={item.id}
-                onClick={() => onSelectTab(item.id)}
+                onClick={handleClick}
                 title={item.label}
                 className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-left transition cursor-pointer relative group ${
                   isActive
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                    : isLocked
+                    ? 'text-slate-500 hover:bg-slate-800/40 opacity-70'
                     : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                 }`}
               >
@@ -277,20 +301,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black mt-0.5 ${
                   isActive
                     ? 'bg-slate-950 text-amber-400'
+                    : isLocked
+                    ? 'bg-slate-800 text-slate-500 border border-slate-800'
                     : 'bg-slate-800 text-amber-400 border border-slate-700 group-hover:border-amber-500/50'
                 }`}>
-                  {item.num}
+                  {isLocked ? <Lock className="w-3 h-3" /> : item.num}
                 </div>
 
                 {isOpen ? (
                   <div className="flex-1 min-w-0 pr-1">
                     <p className={`text-[11px] leading-tight font-bold line-clamp-2 ${
-                      isActive ? 'text-slate-950' : 'text-slate-200'
+                      isActive ? 'text-slate-950' : isLocked ? 'text-slate-400' : 'text-slate-200'
                     }`}>
                       {item.label}
                     </p>
                     <p className={`text-[10px] mt-0.5 truncate ${
-                      isActive ? 'text-slate-800' : 'text-slate-400'
+                      isActive ? 'text-slate-800' : 'text-slate-500'
                     }`}>
                       {item.sublabel}
                     </p>
@@ -304,10 +330,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 self-center ${
                       isActive
                         ? 'bg-slate-950/20 text-slate-950'
+                        : isLocked
+                        ? 'bg-slate-800/60 text-slate-500 border border-slate-800'
                         : 'bg-slate-800 text-amber-400 border border-slate-700'
                     }`}
                   >
-                    {item.badge}
+                    {isLocked ? '🔒' : item.badge}
                   </span>
                 )}
               </button>

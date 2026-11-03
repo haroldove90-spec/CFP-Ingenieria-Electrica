@@ -19,7 +19,8 @@ import {
   Search,
   Eye,
   RefreshCw,
-  Loader2
+  Loader2,
+  ArrowRight
 } from 'lucide-react';
 import { SingleLineDiagram, UserRole } from '../types';
 import { exportDirectImageToPdf, exportDocumentToPdf } from '../utils/pdfExport';
@@ -30,6 +31,7 @@ interface SingleLineDiagramModuleProps {
   activeRole: UserRole;
   onSaveDiagram: (diagram: SingleLineDiagram) => void;
   onDeleteDiagram: (id: string) => void;
+  onSaveAndContinueNext?: (diagram: SingleLineDiagram) => void;
 }
 
 export const SingleLineDiagramModule: React.FC<SingleLineDiagramModuleProps> = ({
@@ -37,6 +39,7 @@ export const SingleLineDiagramModule: React.FC<SingleLineDiagramModuleProps> = (
   activeRole,
   onSaveDiagram,
   onDeleteDiagram,
+  onSaveAndContinueNext,
 }) => {
   const [selectedId, setSelectedId] = useState<string>(diagrams[0]?.id || '');
   const [searchTerm, setSearchTerm] = useState('');
@@ -259,6 +262,19 @@ export const SingleLineDiagramModule: React.FC<SingleLineDiagramModuleProps> = (
               </>
             )}
           </button>
+
+          {onSaveAndContinueNext && (
+            <button
+              onClick={() => {
+                onSaveDiagram(formState);
+                onSaveAndContinueNext(formState);
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs sm:text-sm transition flex items-center gap-2 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <span>Guardar y seguir al siguiente módulo: CÉDULA DEL PERITO</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

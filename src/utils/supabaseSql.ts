@@ -24,6 +24,51 @@ export const SUPABASE_SQL_SCHEMA = `-- =========================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ==============================================================
+-- TABLA MAESTRA: EXPEDIENTES DE DICTAMEN UNIFICADO (7 MÓDULOS / 10 PÁGINAS)
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.dictamenes_expedientes (
+  id TEXT PRIMARY KEY,
+  folio TEXT NOT NULL,
+  claveexpediente TEXT,
+  fecha TEXT,
+  titularnombrecomercial TEXT,
+  titularrazonsocial TEXT,
+  titularrfc TEXT,
+  rfc TEXT,
+  titularcallenumero TEXT,
+  titularcolonia TEXT,
+  titularmunicipio TEXT,
+  titularciudadestado TEXT,
+  titularcodigopostal TEXT,
+  titulartelefono TEXT,
+  solicitantenombre TEXT,
+  solicitantetelefono TEXT,
+  peritonombre TEXT,
+  peritocedula TEXT,
+  peritoafiliacion TEXT,
+  peritoemail TEXT,
+  peritotelefono TEXT,
+  stepprogress NUMERIC DEFAULT 1,
+  iscompleted BOOLEAN DEFAULT false,
+  fechageneraciondictamen TEXT,
+  revisiondata JSONB,
+  solicituddata JSONB,
+  evaluaciondata JSONB,
+  medicionesdata JSONB,
+  diagramadata JSONB,
+  ceduladata JSONB,
+  certificadodata JSONB,
+  esmuestra BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.dictamenes_expedientes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Acceso público completo dictamenes_expedientes" ON public.dictamenes_expedientes;
+CREATE POLICY "Acceso público completo dictamenes_expedientes" ON public.dictamenes_expedientes FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE public.dictamenes_expedientes TO anon, authenticated, service_role;
+
+-- ==============================================================
 -- TABLA 1: REVISIONES Y DICTÁMENES ELÉCTRICOS PRINCIPALES
 -- ==============================================================
 CREATE TABLE IF NOT EXISTS public.revisiones_electricas (
@@ -504,7 +549,33 @@ CREATE POLICY "Acceso público completo agenda" ON public.agenda_citas FOR ALL T
 GRANT ALL ON TABLE public.agenda_citas TO anon, authenticated, service_role;
 
 -- ==============================================================
--- LIMPIEZA / PURGA DE DATOS DE MUESTRA EN LAS 9 TABLAS
+-- TABLA 10: GENERADOR DE CÓDIGOS QR PERICIALES
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.codigos_qr (
+  id TEXT PRIMARY KEY,
+  titulo TEXT,
+  clienteNombre TEXT,
+  folio TEXT,
+  claveExpediente TEXT,
+  peritoNombre TEXT,
+  peritoCedula TEXT,
+  direccion TEXT,
+  fechaEmision TEXT,
+  contenidoTexto TEXT NOT NULL,
+  color TEXT DEFAULT '#0b192c',
+  tamano NUMERIC DEFAULT 300,
+  dataUrl TEXT,
+  svgString TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.codigos_qr ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Acceso público completo codigos_qr" ON public.codigos_qr;
+CREATE POLICY "Acceso público completo codigos_qr" ON public.codigos_qr FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE public.codigos_qr TO anon, authenticated, service_role;
+
+-- ==============================================================
+-- LIMPIEZA / PURGA DE DATOS DE MUESTRA EN TODAS LAS TABLAS
 -- (Elimina registros demo para que tu base de datos opere 100% limpia)
 -- ==============================================================
 DELETE FROM public.revisiones_electricas WHERE esMuestra = true OR id IN ('rep-359', 'rep-360', 'rep-361', 'rep-sample-359', 'rep-sample-360', 'rep-sample-361');

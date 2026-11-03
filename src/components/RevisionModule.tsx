@@ -459,6 +459,7 @@ interface RevisionModuleProps {
   onDeleteReports?: (ids: string[]) => void;
   initialMode?: 'document' | 'form' | 'list';
   autoCreate?: boolean;
+  onSaveAndContinueNext?: (report: RevisionReport) => void;
 }
 
 export const RevisionModule: React.FC<RevisionModuleProps> = ({
@@ -469,6 +470,7 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
   onDeleteReports,
   initialMode = 'list', // User requested list view by default
   autoCreate = false,
+  onSaveAndContinueNext,
 }) => {
   const [selectedReportId, setSelectedReportId] = useState<string>(
     reports.length > 0 ? reports[0].id : ''
@@ -2119,11 +2121,32 @@ export const RevisionModule: React.FC<RevisionModuleProps> = ({
 
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold shadow flex items-center gap-2 cursor-pointer"
                   title="Guardar dictamen en almacenamiento local y sincronizar con Supabase"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Guardar Dictamen</span>
+                  <span>Guardar Borrador</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rep = buildReportFromForm();
+                    if (!rep.folio || !rep.titularNombreComercial) {
+                      alert('Por favor complete al menos el Folio y el Nombre Comercial antes de continuar.');
+                      return;
+                    }
+                    onSaveReport(rep);
+                    if (onSaveAndContinueNext) {
+                      onSaveAndContinueNext(rep);
+                    } else {
+                      setViewMode('document');
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition active:scale-95"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Guardar y seguir al siguiente módulo: SOLICITUD DE SERVICIOS ➔</span>
                 </button>
               </div>
             </div>

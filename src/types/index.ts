@@ -491,4 +491,75 @@ export interface GeneratedQrCode {
   createdAt: string;
 }
 
+// ==========================================
+// MÓDULO MAESTRO: EXPEDIENTE DE DICTAMEN COMPLETO (7 MÓDULOS / 10 PÁGINAS)
+// ==========================================
+export type WizardModuleStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export interface FullDictamenExpediente {
+  id: string;
+  folio: string; // e.g. "359"
+  claveExpediente: string; // e.g. "CFP0125/PCIEMBT/IOA/0071/14XII20 - 359/2026"
+  fecha: string; // e.g. "02-oct-26"
+  
+  // Datos Generales Compartidos
+  titularNombreComercial: string; // e.g. "ABARROTES AZTECA SUC. TIJERAS"
+  titularRazonSocial: string; // e.g. "ABARROTES AZTECA TIJERAS S.A DE C.V"
+  titularRfc: string; // e.g. "AAT170629U46"
+  titularCalleNumero: string;
+  titularColonia: string;
+  titularMunicipio: string;
+  titularCiudadEstado: string;
+  titularCodigoPostal: string;
+  titularTelefono: string;
+
+  // Convenient aliases for UI binding
+  titular?: string;
+  rfc?: string;
+  domicilio?: string;
+  fechaActualizacion?: string;
+  
+  // Solicitante
+  solicitanteNombre: string;
+  solicitanteTelefono: string;
+  
+  // Perito Responsable
+  peritoNombre: string;
+  peritoCedula: string;
+  peritoAfiliacion: string;
+  peritoEmail: string;
+  peritoTelefono: string;
+  
+  // Flujo Secuencial (Paso 1 a 7)
+  stepProgress: WizardModuleStep; // 1 | 2 | 3 | 4 | 5 | 6 | 7 (Indica hasta qué paso ha completado)
+  isCompleted: boolean; // True si los 7 pasos están completos y se ha generado el dictamen final
+  fechaGeneracionDictamen?: string;
+  
+  // Módulos Individuales Vinculados / Embebidos
+  module1_revision?: RevisionReport;
+  revisionData?: RevisionReport;
+
+  module2_solicitud?: ServiceRequest;
+  solicitudData?: ServiceRequest;
+
+  module3_evaluacion?: SafetyEvaluationReport;
+  evaluacionData?: SafetyEvaluationReport;
+
+  module4_mediciones?: ElectricalMeasurementsReport;
+  medicionesData?: ElectricalMeasurementsReport;
+
+  module5_diagrama?: SingleLineDiagram;
+  diagramaData?: SingleLineDiagram;
+
+  module6_cedula?: PeritoCedula;
+  cedulaData?: PeritoCedula;
+
+  module7_certificado?: PeritoCertificado;
+  certificadoData?: PeritoCertificado;
+  
+  esMuestra?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
